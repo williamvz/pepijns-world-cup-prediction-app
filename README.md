@@ -1,40 +1,42 @@
-# ⚽ WK Pool 2026
+# ⚽ World Cup Pool 2026
 
-Een eigen WK-pool app voor Pepijn en vriendjes tijdens het FIFA Wereldkampioenschap 2026!
+A custom World Cup prediction pool app for Pepijn and friends during the FIFA World Cup 2026!
 
-## 🚀 Snel starten (Docker)
+## 🚀 Quick Start (Docker)
 
-### Vereisten
+### Requirements
 - Docker + Docker Compose
-- Internet voor het downloaden van de image
+- Internet access for image downloads
 
-### Stap 1: Kloon of download de repo
+### Step 1: Clone or download the repo
 ```bash
-cd /jouw/map
+cd /your/directory
+git clone https://github.com/williamvz/pepijns-world-cup-prediction-app.git
+cd pepijns-world-cup-prediction-app
 ```
 
-### Stap 2: Pas het wachtwoord aan
-Open `docker-compose.yml` en verander `JWT_SECRET` naar een willekeurig, lang wachtwoord.
+### Step 2: Set the password
+Open `docker-compose.yml` and change `JWT_SECRET` to a long, random string.
 
-### Stap 3: Start de app
+### Step 3: Launch the app
 ```bash
 docker-compose up -d
 ```
 
-De app is nu bereikbaar op: **http://jouw-home-assistant-ip:3001**
+The app is then available at: **http://your-home-assistant-ip:3001**
 
-### Stap 4: Log in als admin
-- Gebruikersnaam: `william`
-- Wachtwoord: `admin123`
+### Step 4: Admin login
+- Username: `william`
+- Password: `admin123`
 
-⚠️ Verander dit wachtwoord meteen na de eerste login!
+⚠️ Change this password immediately after your first login!
 
 ---
 
-## 🏠 Integratie met Home Assistant
+## 🏠 Home Assistant Integration
 
 ### Via NGINX Proxy Manager / Reverse Proxy
-Voeg toe aan je NGINX configuratie:
+Add to your NGINX configuration:
 ```nginx
 location /wkpool/ {
     proxy_pass http://localhost:3001/;
@@ -45,104 +47,104 @@ location /wkpool/ {
 }
 ```
 
-### Als Home Assistant Add-on iframe
-Voeg toe aan je `configuration.yaml`:
+### As a Home Assistant Add-on iframe
+Add to your `configuration.yaml`:
 ```yaml
 panel_iframe:
   wkpool:
-    title: WK Pool 2026
+    title: World Cup Pool 2026
     icon: mdi:soccer
     url: http://homeassistant.local:3001
 ```
 
 ---
 
-## 🛠️ Lokale ontwikkeling
+## 🛠️ Local Development
 
 ### Backend
 ```bash
 cd backend
 npm install
 cp .env.example .env
-# Pas .env aan
-npm run seed    # Database vullen met WK 2026 data
-npm run dev     # Start backend op poort 3001
+# Edit .env as needed
+npm run seed    # Populate the database with World Cup 2026 data
+npm run dev     # Start the backend on port 3001
 ```
 
 ### Frontend
 ```bash
 cd frontend
 npm install
-npm run dev     # Start frontend op poort 5173 (proxied naar backend)
+npm run dev     # Start the frontend on port 5173 (proxied to the backend)
 ```
 
 ---
 
-## 👤 Rollen
+## 👤 Roles
 
-| Rol | Wat kan je doen |
-|-----|----------------|
-| **Admin** (William) | Uitslagen invoeren, fases ontgrendelen, gebruikers beheren |
-| **Speler** | Voorspellingen invoeren, ranglijst bekijken |
-
----
-
-## 📊 Puntensysteem
-
-| Voorspelling | Punten |
-|-------------|--------|
-| Exacte score | 5 pts |
-| Juist doelsaldo + winnaar | 3 pts |
-| Juiste winnaar (of gelijkspel) | 2 pts |
-| Fout | 0 pts |
-
-### Knockout multipliers
-- 1/16 Finale: × 1.5
-- Kwartfinale: × 2
-- Halve Finale: × 2.5
-- Finale: × 3
-
-### Bonuspunten
-- Wereldkampioen voorspeld: **10 punten**
-- Topscorer voorspeld: **5 punten**
+| Role | Capabilities |
+|------|--------------|
+| **Admin** (William) | Enter results, unlock phases, manage users |
+| **Player** | Submit predictions, view the leaderboard |
 
 ---
 
-## 🔧 Beheer
+## 📊 Scoring System
 
-### Database backup
+| Prediction | Points |
+|------------|--------|
+| Exact score | 5 pts |
+| Correct goal difference + winner | 3 pts |
+| Correct winner (or draw) | 2 pts |
+| Incorrect | 0 pts |
+
+### Knockout Multipliers
+- Round of 16: × 1.5
+- Quarterfinal: × 2
+- Semifinal: × 2.5
+- Final: × 3
+
+### Bonus Points
+- Correctly predicting the World Champion: **10 points**
+- Correctly predicting the top scorer: **5 points**
+
+---
+
+## 🔧 Administration
+
+### Database Backup
 ```bash
 docker cp wk-pool-2026:/app/data/wkpool.db ./backup-$(date +%Y%m%d).db
 ```
 
-### Database reset
+### Database Reset
 ```bash
 docker-compose down
 docker volume rm wkpool_data
 docker-compose up -d
 ```
 
-### Logs bekijken
+### View Logs
 ```bash
 docker logs wk-pool-2026 -f
 ```
 
 ---
 
-## 📁 Projectstructuur
+## 📁 Project Structure
 
 ```
 ├── backend/
 │   ├── src/
-│   │   ├── db/          # Database, migraties, seed data
+│   │   ├── db/          # Database, migrations, seed data
 │   │   ├── routes/      # API endpoints
-│   │   ├── middleware/  # Auth, admin checks
-│   │   └── services/    # Puntberekening, achievements
+│   │   ├── middleware/  # Auth and admin checks
+│   │   └── services/    # Point calculation, achievements
 │   └── package.json
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/       # Hoofdpagina's
-│   │   ├── components/  # Herbruikbare componenten
+│   │   ├── pages/       # Main pages
+│   │   ├── components/  # Reusable components
 │   │   ├── context/     # Auth context
 │   │   └── services/    # API calls
 │   └── package.json
@@ -153,24 +155,24 @@ docker logs wk-pool-2026 -f
 
 ---
 
-## 🎯 Admin handleiding
+## 🎯 Admin Guide
 
-### Uitslag invoeren
-1. Ga naar de **Admin** pagina (tandwiel-icoon)
-2. Klik op **Uitslagen invoeren**
-3. Zoek de wedstrijd en vul de score in
-4. Klik **Opslaan** — punten worden automatisch berekend!
+### Enter Match Results
+1. Go to the **Admin** page (gear icon)
+2. Click **Enter Results**
+3. Find the match and enter the score
+4. Click **Save** — points are calculated automatically!
 
-### Nieuwe fase ontgrendelen (bijv. achtste finales)
-1. Ga naar **Fases ontgrendelen**
-2. Klik **Ontgrendel** bij de gewenste fase
-3. Alle spelers krijgen een melding in de app
+### Unlock a New Phase (e.g. Round of 16)
+1. Go to **Unlock Phases**
+2. Click **Unlock** for the desired phase
+3. All players receive an in-app notification
 
-### Gebruiker wachtwoord resetten
-1. Ga naar **Gebruikers beheren**
-2. Klik op het sleutel-icoon
-3. Voer het nieuwe wachtwoord in
+### Reset a User's Password
+1. Go to **Manage Users**
+2. Click the key icon
+3. Enter the new password
 
 ---
 
-Gemaakt met ❤️ voor Pepijn & vriendjes | WK 2026 🏆
+Made with ❤️ for Pepijn & friends | World Cup 2026 🏆
