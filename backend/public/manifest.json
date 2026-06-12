@@ -1,0 +1,13 @@
+{
+  "name": "WK Pool 2026",
+  "short_name": "WK Pool",
+  "description": "FIFA Wereldkampioenschap 2026 voorspellingen",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14532d",
+  "theme_color": "#15803d",
+  "icons": [
+    {"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png"}
+  ]
+}

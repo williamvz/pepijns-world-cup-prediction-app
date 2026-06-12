@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  wkpool:
+    build: .
+    container_name: wk-pool-2026
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - wkpool_data:/app/data
+    environment:
+      - PORT=3001
+      - NODE_ENV=production
+      - DB_PATH=/app/data/wkpool.db
+      # BELANGRIJK: Verander JWT_SECRET naar een lang, willekeurig wachtwoord!
+      - JWT_SECRET=verander-dit-naar-een-veilig-wachtwoord-van-minimaal-32-tekens
+      - JWT_EXPIRES_IN=30d
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+
+volumes:
+  wkpool_data:
+    driver: local

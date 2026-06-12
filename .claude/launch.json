@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "WK Pool Backend",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["src/server.js"],
+      "cwd": "/Users/william/Documents/Claude Code/Pepijn's WK Pool/backend",
+      "port": 3001
+    }
+  ]
+}

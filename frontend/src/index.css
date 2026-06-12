@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Inter:wght@400;500;600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-pitch-900 text-white font-body;
+    min-height: 100vh;
+  }
+  h1, h2, h3 { @apply font-heading; }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/10 backdrop-blur-sm border border-white/20;
+  }
+  .glass-dark {
+    @apply bg-black/30 backdrop-blur-sm border border-white/10;
+  }
+  .card {
+    @apply bg-pitch-800/80 rounded-2xl border border-white/10 shadow-xl;
+  }
+  .btn-primary {
+    @apply bg-gold-500 hover:bg-gold-400 text-pitch-900 font-heading font-bold px-6 py-3 rounded-xl transition-all active:scale-95 shadow-lg;
+  }
+  .btn-secondary {
+    @apply bg-white/10 hover:bg-white/20 text-white font-heading font-bold px-6 py-3 rounded-xl transition-all active:scale-95 border border-white/20;
+  }
+  .btn-danger {
+    @apply bg-red-500 hover:bg-red-400 text-white font-heading font-bold px-6 py-3 rounded-xl transition-all active:scale-95;
+  }
+  .input {
+    @apply bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/40 focus:outline-none focus:border-gold-400 focus:ring-2 focus:ring-gold-400/20 transition-all w-full;
+  }
+  .badge-common { @apply bg-gray-600; }
+  .badge-uncommon { @apply bg-green-700; }
+  .badge-rare { @apply bg-blue-700; }
+  .badge-legendary { @apply bg-yellow-600; }
+}
+
+/* Field pattern background */
+.field-bg {
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 60px,
+      rgba(255,255,255,0.03) 60px,
+      rgba(255,255,255,0.03) 120px
+    );
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+/* Score input styling */
+.score-input {
+  @apply w-16 h-16 text-center text-2xl font-heading font-bold bg-white/10 border-2 border-white/20 rounded-xl focus:border-gold-400 focus:ring-2 focus:ring-gold-400/20 focus:outline-none transition-all text-white;
+}
+
+/* Remove number input arrows */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+input[type=number] { -moz-appearance: textfield; }

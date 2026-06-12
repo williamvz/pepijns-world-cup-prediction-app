@@ -1,0 +1,23 @@
+name: "WK Pool 2026"
+description: "FIFA Wereldkampioenschap 2026 voorspellingen pool voor Pepijn en vriendjes"
+version: "1.0.0"
+slug: "wkpool2026"
+init: false
+arch:
+  - aarch64
+  - amd64
+  - armv7
+ports:
+  3001/tcp: 3001
+ports_description:
+  3001/tcp: "WK Pool web interface"
+options:
+  jwt_secret: "verander-dit-naar-een-lang-veilig-wachtwoord"
+schema:
+  jwt_secret: str
+panel_icon: "mdi:soccer"
+panel_title: "WK Pool 2026"
+panel_admin: false
+url: "https://github.com/jwvanzweeden/wkpool2026"
+ingress: true
+ingress_port: 3001
