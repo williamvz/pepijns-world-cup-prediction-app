@@ -1,6 +1,6 @@
 name: "WK Pool 2026"
 description: "FIFA Wereldkampioenschap 2026 voorspellingen pool voor Pepijn en vriendjes"
-version: "1.0.0"
+version: "1.1.0"
 slug: "wkpool2026"
 init: false
 arch:
