@@ -17,6 +17,9 @@ frontend/dist/
 *.log
 npm-debug.log*
 
+# SQLite database (runtime data — never commit; lives in the app's data dir)
+backend/data/
+
 # OS / editor
 .DS_Store
 .vscode/
