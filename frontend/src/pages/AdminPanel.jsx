@@ -216,6 +216,14 @@ export default function AdminPanel() {
 
   async function handleToggleRole(user) {
     const newRole = user.role === 'admin' ? 'player' : 'admin'
+    // The game always needs at least one admin — block demoting the last one.
+    if (newRole === 'player') {
+      const adminCount = users.filter((u) => u.role === 'admin').length
+      if (adminCount <= 1) {
+        showMsg('Er moet altijd minstens één admin zijn')
+        return
+      }
+    }
     setConfirm({
       message: `${user.username} ${newRole === 'admin' ? 'admin maken' : 'terugzetten naar speler'}?`,
       onConfirm: async () => {
@@ -283,8 +291,13 @@ export default function AdminPanel() {
     )
   }
 
-  const finishedMatches = matches.filter((m) => m.status === 'finished' || m.status === 'afgelopen')
-  const pendingMatches = matches.filter((m) => m.status !== 'finished' && m.status !== 'afgelopen')
+  // Sort purely chronologically so results can be entered in the order matches
+  // are played, rather than grouped per pool.
+  const sortedMatches = [...matches].sort((a, b) => {
+    const dtA = new Date(a.match_datetime || a.match_date || a.datetime)
+    const dtB = new Date(b.match_datetime || b.match_date || b.datetime)
+    return dtA - dtB
+  })
 
   return (
     <div className="px-4 py-6 max-w-4xl mx-auto">
@@ -359,10 +372,10 @@ export default function AdminPanel() {
       {activeTab === 'scores' && (
         <div className="space-y-3">
           <h2 className="font-heading font-bold text-white mb-2">Uitslagen invoeren</h2>
-          {matches.length === 0 ? (
+          {sortedMatches.length === 0 ? (
             <div className="card p-8 text-center text-white/40 font-heading">Geen wedstrijden gevonden</div>
           ) : (
-            matches.map((m) => (
+            sortedMatches.map((m) => (
               <ScoreInput
                 key={m.id}
                 match={m}
@@ -492,7 +505,9 @@ export default function AdminPanel() {
           {users.length === 0 ? (
             <div className="card p-8 text-center text-white/40 font-heading">Geen gebruikers gevonden</div>
           ) : (
-            users.map((u) => (
+            users.map((u) => {
+            const isLastAdmin = u.role === 'admin' && users.filter((x) => x.role === 'admin').length <= 1
+            return (
               <div key={u.id} className="card p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar avatar={u.avatar} size="sm" />
@@ -513,11 +528,15 @@ export default function AdminPanel() {
                   </button>
                   <button
                     className={`text-xs py-1.5 px-3 rounded-xl font-heading font-bold transition-all active:scale-95 ${
-                      u.role === 'admin'
+                      isLastAdmin
+                        ? 'bg-white/10 text-white/30 cursor-not-allowed'
+                        : u.role === 'admin'
                         ? 'bg-orange-600 hover:bg-orange-500 text-white'
                         : 'bg-blue-700 hover:bg-blue-600 text-white'
                     }`}
                     onClick={() => handleToggleRole(u)}
+                    disabled={isLastAdmin}
+                    title={isLastAdmin ? 'Er moet altijd minstens één admin zijn' : ''}
                   >
                     {u.role === 'admin' ? '⬇️ Naar speler' : '⭐ Maak admin'}
                   </button>
@@ -529,7 +548,8 @@ export default function AdminPanel() {
                   </button>
                 </div>
               </div>
-            ))
+            )
+            })
           )}
         </div>
       )}
@@ -538,10 +558,10 @@ export default function AdminPanel() {
       {activeTab === 'matches' && (
         <div className="space-y-3">
           <h2 className="font-heading font-bold text-white mb-2">Wedstrijden aanpassen</h2>
-          {matches.length === 0 ? (
+          {sortedMatches.length === 0 ? (
             <div className="card p-8 text-center text-white/40 font-heading">Geen wedstrijden gevonden</div>
           ) : (
-            matches.map((m) => {
+            sortedMatches.map((m) => {
               const matchDate = new Date(m.match_datetime || m.match_date || m.datetime)
               const statusColors = {
                 finished: 'text-green-400',

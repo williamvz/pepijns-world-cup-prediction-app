@@ -1,3 +1,5 @@
+import { populateFifaRankings } from './fifaRankings.js'
+
 export function initDatabase(db) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
@@ -92,6 +94,17 @@ export function initDatabase(db) {
       created_at TEXT DEFAULT current_timestamp
     );
   `)
+
+  // ── Migration: add fifa_ranking column to teams (idempotent) ──────────────
+  // The teams table predates this column on existing databases. Adding it via
+  // ALTER TABLE only when missing keeps already-seeded data fully intact.
+  const teamColumns = db.prepare('PRAGMA table_info(teams)').all()
+  if (!teamColumns.some((c) => c.name === 'fifa_ranking')) {
+    db.exec('ALTER TABLE teams ADD COLUMN fifa_ranking INTEGER')
+  }
+  // Backfill rankings for any team still missing one (no-op on a fresh DB,
+  // where teams are inserted later by the seed script).
+  populateFifaRankings(db)
 
   // Seed achievement definitions if empty
   const count = db.prepare('SELECT COUNT(*) as cnt FROM achievement_definitions').get()

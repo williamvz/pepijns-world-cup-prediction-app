@@ -22,9 +22,9 @@ const matchWithTeamsSQL = `
   SELECT
     m.*,
     ht.id as home_team_id, ht.name as home_team_name, ht.code as home_team_code,
-    ht.flag_emoji as home_team_flag, ht.group_name as home_team_group,
+    ht.flag_emoji as home_team_flag, ht.group_name as home_team_group, ht.fifa_ranking as home_team_rank,
     at.id as away_team_id, at.name as away_team_name, at.code as away_team_code,
-    at.flag_emoji as away_team_flag, at.group_name as away_team_group,
+    at.flag_emoji as away_team_flag, at.group_name as away_team_group, at.fifa_ranking as away_team_rank,
     ph.name as phase_name, ph.multiplier as phase_multiplier, ph.is_unlocked as phase_is_unlocked
   FROM matches m
   LEFT JOIN teams ht ON m.home_team_id = ht.id
@@ -53,12 +53,14 @@ function formatMatch(row) {
       name: row.home_team_name,
       code: row.home_team_code,
       flag_emoji: row.home_team_flag,
+      fifa_ranking: row.home_team_rank,
     },
     away_team: {
       id: row.away_team_id,
       name: row.away_team_name,
       code: row.away_team_code,
       flag_emoji: row.away_team_flag,
+      fifa_ranking: row.away_team_rank,
     },
   }
 }

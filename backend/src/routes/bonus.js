@@ -43,6 +43,23 @@ router.post('/', (req, res) => {
     }
   }
 
+  // For topscorer: may still be changed throughout the group stage, but locks
+  // once the last group-stage match has kicked off.
+  if (type === 'topscorer') {
+    const lastGroupMatch = db.prepare(`
+      SELECT MAX(m.match_datetime) as last_dt
+      FROM matches m
+      JOIN phases ph ON m.phase_id = ph.id
+      WHERE ph.name = 'Groepsfase'
+    `).get()
+
+    if (lastGroupMatch?.last_dt && nowNaive() >= lastGroupMatch.last_dt) {
+      return res.status(400).json({
+        error: 'Topscorer voorspelling is gesloten - de groepsfase is afgelopen'
+      })
+    }
+  }
+
   // Upsert bonus prediction
   db.prepare(`
     INSERT INTO bonus_predictions (user_id, type, predicted_value)

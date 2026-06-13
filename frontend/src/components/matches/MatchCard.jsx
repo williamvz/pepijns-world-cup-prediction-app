@@ -50,6 +50,9 @@ export default function MatchCard({ match, prediction, onPredict }) {
           <span className="font-heading font-bold text-sm text-white text-center leading-tight">
             {match.home_team}
           </span>
+          {match.home_rank != null && (
+            <span className="text-white/30 text-[10px] font-heading">FIFA #{match.home_rank}</span>
+          )}
         </div>
 
         {/* Score / VS */}
@@ -85,6 +88,9 @@ export default function MatchCard({ match, prediction, onPredict }) {
           <span className="font-heading font-bold text-sm text-white text-center leading-tight">
             {match.away_team}
           </span>
+          {match.away_rank != null && (
+            <span className="text-white/30 text-[10px] font-heading">FIFA #{match.away_rank}</span>
+          )}
         </div>
       </div>
 

@@ -28,6 +28,7 @@ export default function LeaderboardTable({ entries = [], currentUserId, onCompar
           const entry = podium[i]
           if (!entry) return <div key={i} className="w-24" />
           const isMe = entry.user_id === currentUserId || entry.id === currentUserId
+          const canCompare = onCompare && !isMe
 
           return (
             <div
@@ -36,9 +37,13 @@ export default function LeaderboardTable({ entries = [], currentUserId, onCompar
             >
               <div className="text-2xl mb-1">{MEDALS[i]}</div>
               <Avatar avatar={entry.avatar} size={i === 0 ? 'lg' : 'md'} />
-              <div
-                className={`mt-2 rounded-xl border p-3 text-center ${PODIUM_BG[i]} ${isMe ? 'ring-2 ring-gold-400' : ''}`}
+              <button
+                type="button"
+                disabled={!canCompare}
+                onClick={canCompare ? () => onCompare(entry) : undefined}
+                className={`mt-2 rounded-xl border p-3 text-center ${PODIUM_BG[i]} ${isMe ? 'ring-2 ring-gold-400' : ''} ${canCompare ? 'cursor-pointer hover:brightness-125 transition-all active:scale-95' : 'cursor-default'}`}
                 style={{ minWidth: 72 }}
+                title={canCompare ? 'Vergelijk' : ''}
               >
                 <div className="font-heading font-bold text-xs text-white truncate max-w-[72px]">
                   {entry.username}
@@ -46,8 +51,8 @@ export default function LeaderboardTable({ entries = [], currentUserId, onCompar
                 <div className="font-heading font-black text-lg text-gold-400">
                   {entry.total_points ?? entry.points ?? 0}
                 </div>
-                <div className="text-white/40 text-xs">punten</div>
-              </div>
+                <div className="text-white/40 text-xs">{canCompare ? 'vergelijk ⚖️' : 'punten'}</div>
+              </button>
             </div>
           )
         })}
