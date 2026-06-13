@@ -95,6 +95,14 @@ router.put('/users/:id', (req, res) => {
     return res.status(400).json({ error: 'Ongeldige rol' })
   }
 
+  // The game always needs at least one admin. Block demoting the last one.
+  if (role === 'player' && user.role === 'admin') {
+    const adminCount = db.prepare("SELECT COUNT(*) as cnt FROM users WHERE role = 'admin'").get().cnt
+    if (adminCount <= 1) {
+      return res.status(400).json({ error: 'Er moet altijd minstens één admin zijn' })
+    }
+  }
+
   let updates = []
   let params = []
 

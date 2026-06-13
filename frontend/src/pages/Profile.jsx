@@ -46,6 +46,7 @@ export default function Profile() {
   const [bonusScorer, setBonusScorer] = useState('')
   const [bonusSaving, setBonusSaving] = useState('')
   const [bonusMsg, setBonusMsg] = useState('')
+  const [editingScorer, setEditingScorer] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -116,6 +117,7 @@ export default function Profile() {
     try {
       await api.saveBonus(type, value.trim())
       setBonusMsg(`${type === 'champion' ? 'Kampioen' : 'Topscorer'} opgeslagen!`)
+      if (type === 'topscorer') setEditingScorer(false)
       fetchData()
     } catch (err) {
       setBonusMsg(err.message || 'Opslaan mislukt')
@@ -294,10 +296,10 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Top scorer */}
+          {/* Top scorer — editable during the group stage */}
           <div>
             <label className="block text-white/70 text-sm font-heading mb-1.5">⚽ Topscorer</label>
-            {scorerBonus ? (
+            {scorerBonus && !editingScorer ? (
               <div className="flex items-center gap-3 glass rounded-xl p-3">
                 <span className="font-heading font-bold text-gold-400">{scorerBonus.predicted_value}</span>
                 <span className="text-white/30 text-xs font-heading">
@@ -305,23 +307,44 @@ export default function Profile() {
                     ? `${scorerBonus.points} pt`
                     : 'Nog geen uitslag'}
                 </span>
+                <button
+                  className="btn-secondary text-xs py-1 px-3 ml-auto flex-shrink-0"
+                  onClick={() => { setBonusScorer(scorerBonus.predicted_value); setBonusMsg(''); setEditingScorer(true) }}
+                >
+                  ✏️ Wijzig
+                </button>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  className="input"
-                  placeholder="bv. Mbappé"
-                  value={bonusScorer}
-                  onChange={(e) => setBonusScorer(e.target.value)}
-                />
-                <button
-                  className="btn-primary flex-shrink-0 py-2 px-4 text-sm"
-                  onClick={() => handleSaveBonus('topscorer', bonusScorer)}
-                  disabled={bonusSaving === 'topscorer'}
-                >
-                  {bonusSaving === 'topscorer' ? '...' : 'Opslaan'}
-                </button>
+              <div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="bv. Mbappé"
+                    value={bonusScorer}
+                    onChange={(e) => setBonusScorer(e.target.value)}
+                  />
+                  <button
+                    className="btn-primary flex-shrink-0 py-2 px-4 text-sm"
+                    onClick={() => handleSaveBonus('topscorer', bonusScorer)}
+                    disabled={bonusSaving === 'topscorer'}
+                  >
+                    {bonusSaving === 'topscorer' ? '...' : 'Opslaan'}
+                  </button>
+                  {scorerBonus && (
+                    <button
+                      className="btn-secondary flex-shrink-0 py-2 px-3 text-sm"
+                      onClick={() => { setEditingScorer(false); setBonusMsg('') }}
+                    >
+                      Annuleer
+                    </button>
+                  )}
+                </div>
+                {scorerBonus && (
+                  <p className="text-white/30 text-xs font-heading mt-1.5">
+                    Je topscorer kan tijdens de groepsfase nog worden aangepast.
+                  </p>
+                )}
               </div>
             )}
           </div>

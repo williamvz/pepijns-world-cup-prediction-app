@@ -3,6 +3,7 @@ dotenv.config()
 
 import bcrypt from 'bcryptjs'
 import db from './database.js'
+import { populateFifaRankings } from './fifaRankings.js'
 
 // ── 0. GUARD: only seed a FRESH database ─────────────────────────────────────
 // /data/wkpool.db is persistent across restarts and rebuilds. We must NEVER
@@ -131,6 +132,9 @@ const insertTeams = db.transaction(() => {
   for (const t of teamsData) insertTeam.run(...t)
 })
 insertTeams()
+
+// Fill in each team's FIFA ranking.
+populateFifaRankings(db)
 
 // Helper: look up team id by code
 const getTeamId = (code) => {

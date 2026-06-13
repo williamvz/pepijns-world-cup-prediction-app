@@ -74,11 +74,17 @@ export default function PredictModal({ match, existingPrediction, onSave, onClos
           <div className="flex-1 text-center">
             <div className="text-4xl mb-1">{homeFlag}</div>
             <div className="font-heading font-bold text-sm text-white">{match.home_team}</div>
+            {match.home_rank != null && (
+              <div className="text-white/30 text-[10px] font-heading mt-0.5">FIFA #{match.home_rank}</div>
+            )}
           </div>
           <div className="text-white/30 font-heading font-bold text-xl px-4">VS</div>
           <div className="flex-1 text-center">
             <div className="text-4xl mb-1">{awayFlag}</div>
             <div className="font-heading font-bold text-sm text-white">{match.away_team}</div>
+            {match.away_rank != null && (
+              <div className="text-white/30 text-[10px] font-heading mt-0.5">FIFA #{match.away_rank}</div>
+            )}
           </div>
         </div>
 
