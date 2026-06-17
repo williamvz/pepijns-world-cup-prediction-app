@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import { api } from '../services/api'
-import ScoreInput from '../components/admin/ScoreInput'
+import ScoresPanel from '../components/admin/ScoresPanel'
 import Avatar from '../components/common/Avatar'
 
 const TABS = [
@@ -370,20 +370,7 @@ export default function AdminPanel() {
 
       {/* Scores tab */}
       {activeTab === 'scores' && (
-        <div className="space-y-3">
-          <h2 className="font-heading font-bold text-white mb-2">Uitslagen invoeren</h2>
-          {sortedMatches.length === 0 ? (
-            <div className="card p-8 text-center text-white/40 font-heading">Geen wedstrijden gevonden</div>
-          ) : (
-            sortedMatches.map((m) => (
-              <ScoreInput
-                key={m.id}
-                match={m}
-                onSave={() => fetchAll()}
-              />
-            ))
-          )}
-        </div>
+        <ScoresPanel matches={matches} onSaved={fetchAll} />
       )}
 
       {/* Phases tab */}
