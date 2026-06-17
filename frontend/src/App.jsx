@@ -8,7 +8,6 @@ import AchievementPopup from './components/common/AchievementPopup'
 import LoginPage from './components/auth/LoginPage'
 import Home from './pages/Home'
 import Matches from './pages/Matches'
-import Predictions from './pages/Predictions'
 import Leaderboard from './pages/Leaderboard'
 import Profile from './pages/Profile'
 import Achievements from './pages/Achievements'
@@ -137,16 +136,9 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/voorspellingen"
-          element={
-            <ProtectedRoute>
-              <AppLayout>
-                <Predictions />
-              </AppLayout>
-            </ProtectedRoute>
-          }
-        />
+        {/* Predictions live on the unified Wedstrijden page now; keep the old
+            path working for bookmarks by redirecting. */}
+        <Route path="/voorspellingen" element={<Navigate to="/wedstrijden" replace />} />
         <Route
           path="/ranglijst"
           element={

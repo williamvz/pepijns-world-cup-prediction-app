@@ -2,39 +2,35 @@ import React, { useState, useEffect, useCallback } from 'react'
 import { api } from '../services/api'
 import MatchCard from '../components/matches/MatchCard'
 import PredictModal from '../components/predictions/PredictModal'
+import { PillGroup, TogglePill, ControlLabel, GroupHeader } from '../components/common/FilterControls'
+import { GROUP_OPTIONS, sortByDate, groupMatchItems } from '../utils/matchFilters'
 
-const PHASES = [
-  { key: 'group', label: 'Groepsfase' },
-  { key: 'round_of_32', label: '1/32 Finale' },
-  { key: 'round_of_16', label: '1/16 Finale' },
-  { key: 'quarter', label: 'Kwartfinale' },
-  { key: 'semi', label: 'Halve Finale' },
-  { key: 'third_place', label: '3e Plaats' },
-  { key: 'final', label: 'Finale' },
+const STATUS_FILTERS = [
+  { key: 'all', label: 'Alles' },
+  { key: 'todo', label: 'Nog in te vullen' },
+  { key: 'filled', label: 'Ingevuld' },
+  { key: 'finished', label: 'Afgelopen' },
 ]
 
-const GROUPS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
-
-function phaseKey(match) {
-  const phase = (match.phase || match.round || '').toLowerCase()
-  if (phase.includes('group') || phase.includes('groep') || phase === 'group stage') return 'group'
-  if (phase.includes('32')) return 'round_of_32'
-  if (phase.includes('16') || phase.includes('achtste')) return 'round_of_16'
-  if (phase.includes('kwart') || phase.includes('quarter')) return 'quarter'
-  if (phase.includes('halve') || phase.includes('semi')) return 'semi'
-  if (phase.includes('derde') || phase.includes('third') || phase.includes('3e')) return 'third_place'
-  if (phase.includes('final') || phase.includes('finale')) return 'final'
-  return 'group'
+function hasPrediction(prediction) {
+  return (
+    !!prediction &&
+    prediction.predicted_home !== null &&
+    prediction.predicted_home !== undefined
+  )
 }
 
 export default function Matches() {
   const [matches, setMatches] = useState([])
   const [predictions, setPredictions] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activePhase, setActivePhase] = useState('group')
-  const [activeGroup, setActiveGroup] = useState('A')
-  const [predictModal, setPredictModal] = useState(null)
   const [error, setError] = useState('')
+  const [filter, setFilter] = useState('all')
+  const [groupBy, setGroupBy] = useState('none')
+  const [sortDir, setSortDir] = useState('asc')
+  const [hidePredicted, setHidePredicted] = useState(false)
+  const [search, setSearch] = useState('')
+  const [predictModal, setPredictModal] = useState(null)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -61,20 +57,46 @@ export default function Matches() {
   useEffect(() => { fetchData() }, [fetchData])
 
   function getPrediction(matchId) {
-    return predictions.find((p) => p.match_id === matchId || p.match?.id === matchId)
+    return predictions.find((p) => p.match_id === matchId || p.match?.id === matchId) || null
   }
 
-  const phaseMatches = matches.filter((m) => phaseKey(m) === activePhase)
-  const availableGroups = GROUPS.filter((g) =>
-    phaseMatches.some((m) => (m.group || '').toUpperCase() === g)
+  const items = matches.map((m) => ({ match: m, prediction: getPrediction(m.id) }))
+
+  // Counts per status filter (independent of search / hide-predicted).
+  const counts = items.reduce(
+    (acc, { match, prediction }) => {
+      const isFinished = match.status === 'finished'
+      const has = hasPrediction(prediction)
+      acc.all += 1
+      if (!has && !isFinished) acc.todo += 1
+      if (has && !isFinished) acc.filled += 1
+      if (isFinished) acc.finished += 1
+      return acc
+    },
+    { all: 0, todo: 0, filled: 0, finished: 0 }
   )
 
-  const displayedMatches =
-    activePhase === 'group'
-      ? phaseMatches.filter((m) => (m.group || '').toUpperCase() === activeGroup)
-      : phaseMatches
+  const query = search.trim().toLowerCase()
 
-  const availablePhases = PHASES.filter((ph) => matches.some((m) => phaseKey(m) === ph.key))
+  const filtered = items.filter(({ match, prediction }) => {
+    const isFinished = match.status === 'finished'
+    const has = hasPrediction(prediction)
+
+    if (hidePredicted && has) return false
+    if (filter === 'todo' && (has || isFinished)) return false
+    if (filter === 'filled' && (!has || isFinished)) return false
+    if (filter === 'finished' && !isFinished) return false
+
+    if (query) {
+      const hay = `${match.home_team || ''} ${match.away_team || ''} ${match.venue || ''}`.toLowerCase()
+      if (!hay.includes(query)) return false
+    }
+    return true
+  })
+
+  const sorted = sortByDate(filtered, sortDir, (x) => x.match)
+  const sections = groupMatchItems(sorted, groupBy, (x) => x.match)
+  const statusOptions = STATUS_FILTERS.map((f) => ({ ...f, count: counts[f.key] }))
 
   if (loading) {
     return (
@@ -94,70 +116,60 @@ export default function Matches() {
         </div>
       )}
 
-      {/* Phase tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
-        {(availablePhases.length > 0 ? availablePhases : PHASES).map((ph) => {
-          const hasMatches = matches.some((m) => phaseKey(m) === ph.key)
-          return (
-            <button
-              key={ph.key}
-              onClick={() => { setActivePhase(ph.key); setActiveGroup('A') }}
-              className={`flex-shrink-0 px-4 py-2 rounded-xl font-heading font-bold text-sm transition-all ${
-                activePhase === ph.key
-                  ? 'bg-gold-500 text-pitch-900'
-                  : hasMatches
-                  ? 'bg-white/10 text-white hover:bg-white/20'
-                  : 'bg-white/5 text-white/30 cursor-not-allowed'
-              }`}
-              disabled={!hasMatches}
-            >
-              {ph.label}
-            </button>
-          )
-        })}
+      {/* Status filter */}
+      <PillGroup options={statusOptions} value={filter} onChange={setFilter} className="mb-3" />
+
+      {/* Search */}
+      <input
+        type="text"
+        className="input text-sm mb-3"
+        placeholder="🔍 Zoek op land of stadion…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+      />
+
+      {/* Group / sort / hide controls */}
+      <div className="space-y-2 mb-4">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <ControlLabel>Groeperen</ControlLabel>
+          <PillGroup options={GROUP_OPTIONS} value={groupBy} onChange={setGroupBy} size="sm" />
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <TogglePill active={hidePredicted} onClick={() => setHidePredicted((v) => !v)}>
+            {hidePredicted ? '🙈' : '👁️'} Verberg voorspelde
+          </TogglePill>
+          <TogglePill active={false} onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}>
+            {sortDir === 'asc' ? '↑ Datum (vroeg → laat)' : '↓ Datum (laat → vroeg)'}
+          </TogglePill>
+        </div>
       </div>
 
-      {/* Group tabs (group phase only) */}
-      {activePhase === 'group' && availableGroups.length > 0 && (
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
-          {availableGroups.map((g) => (
-            <button
-              key={g}
-              onClick={() => setActiveGroup(g)}
-              className={`flex-shrink-0 w-10 h-10 rounded-xl font-heading font-bold text-sm transition-all ${
-                activeGroup === g
-                  ? 'bg-pitch-700 text-white border-2 border-gold-400'
-                  : 'bg-white/10 text-white/70 hover:bg-white/20'
-              }`}
-            >
-              {g}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Matches list */}
-      {displayedMatches.length === 0 ? (
+      {sorted.length === 0 ? (
         <div className="card p-8 text-center">
-          <div className="text-4xl mb-3">🔒</div>
-          <p className="font-heading font-bold text-white/70 mb-1">
-            {activePhase === 'group'
-              ? `Geen wedstrijden in groep ${activeGroup}`
-              : 'Nog niet ontgrendeld'}
-          </p>
-          <p className="text-white/40 text-sm">
-            {activePhase !== 'group' && 'Wordt ontgrendeld door de admin zodra de fase begint.'}
-          </p>
+          <div className="text-4xl mb-3">🔍</div>
+          <p className="font-heading font-bold text-white/70">Geen wedstrijden gevonden</p>
+          {(hidePredicted || query || filter !== 'all') && (
+            <p className="text-white/40 text-sm mt-1 font-heading">
+              Pas je filters of zoekopdracht aan om meer te zien.
+            </p>
+          )}
         </div>
       ) : (
-        <div className="space-y-3">
-          {displayedMatches.map((match) => (
-            <MatchCard
-              key={match.id}
-              match={match}
-              prediction={getPrediction(match.id)}
-              onPredict={(m) => setPredictModal(m)}
-            />
+        <div>
+          {sections.map((section) => (
+            <div key={section.key}>
+              {section.label && <GroupHeader label={section.label} count={section.count} />}
+              <div className="space-y-3">
+                {section.items.map(({ match, prediction }) => (
+                  <MatchCard
+                    key={match.id}
+                    match={match}
+                    prediction={prediction}
+                    onPredict={(m) => setPredictModal(m)}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
