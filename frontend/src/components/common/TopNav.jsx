@@ -34,6 +34,7 @@ export default function TopNav() {
   const navLinks = [
     { to: '/', label: 'Home', exact: true },
     { to: '/wedstrijden', label: 'Wedstrijden' },
+    { to: '/voorspellingen', label: 'Voorspellingen' },
     { to: '/ranglijst', label: 'Ranglijst' },
     { to: '/profiel', label: 'Profiel' },
   ]

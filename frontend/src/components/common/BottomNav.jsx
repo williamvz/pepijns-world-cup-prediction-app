@@ -5,6 +5,7 @@ import { api } from '../../services/api'
 const TABS = [
   { to: '/', label: 'Home', emoji: '🏠', exact: true },
   { to: '/wedstrijden', label: 'Wedstrijden', emoji: '⚽' },
+  { to: '/voorspellingen', label: 'Voorspel', emoji: '📝' },
   { to: '/ranglijst', label: 'Ranglijst', emoji: '🏆' },
   { to: '/prestaties', label: 'Prestaties', emoji: '🏅' },
   { to: '/profiel', label: 'Profiel', emoji: '👤' },
