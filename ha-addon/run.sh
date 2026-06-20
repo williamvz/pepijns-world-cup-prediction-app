@@ -1,8 +1,14 @@
 #!/bin/sh
 
-# Read JWT secret from HA add-on config (/data/options.json)
-# Falls back to a default if not set
-JWT_SECRET=$(jq -r '.jwt_secret // "changeme-set-this-in-ha-config"' /data/options.json 2>/dev/null || echo "changeme-set-this-in-ha-config")
+# Read JWT secret from HA add-on config (/data/options.json). There is no
+# fallback on purpose: starting without a real secret would let anyone forge a
+# valid (admin) token. Refuse to start until one is configured.
+JWT_SECRET=$(jq -r '.jwt_secret // ""' /data/options.json 2>/dev/null || echo "")
+if [ -z "$JWT_SECRET" ]; then
+  echo "❌ jwt_secret is niet ingesteld."
+  echo "   Ga naar de add-on → Configuratie en zet jwt_secret op een lang, willekeurig geheim."
+  exit 1
+fi
 
 export PORT=3001
 export NODE_ENV=production

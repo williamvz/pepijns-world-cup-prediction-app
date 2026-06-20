@@ -15,8 +15,14 @@ git clone https://github.com/williamvz/pepijns-world-cup-prediction-app.git
 cd pepijns-world-cup-prediction-app
 ```
 
-### Step 2: Set the password
-Open `docker-compose.yml` and change `JWT_SECRET` to a long, random string.
+### Step 2: Set the secrets
+Create a `.env` file next to `docker-compose.yml`:
+```bash
+JWT_SECRET=<a long, random string>
+ADMIN_PASSWORD=<the password for the first admin account>
+```
+The app refuses to start without `JWT_SECRET`. If you leave `ADMIN_PASSWORD`
+unset, a random password is generated and printed once in the logs on first run.
 
 ### Step 3: Launch the app
 ```bash
@@ -26,10 +32,10 @@ docker-compose up -d
 The app is then available at: **http://your-home-assistant-ip:3001**
 
 ### Step 4: Admin login
-- Username: `william`
-- Password: `admin123`
+- Username: `william` (or your `ADMIN_USERNAME`)
+- Password: the `ADMIN_PASSWORD` you set (or the random one from the logs)
 
-⚠️ Change this password immediately after your first login!
+⚠️ Change this password from the admin panel after your first login!
 
 ---
 
