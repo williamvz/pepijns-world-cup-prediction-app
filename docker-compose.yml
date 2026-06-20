@@ -13,8 +13,10 @@ services:
       - PORT=3001
       - NODE_ENV=production
       - DB_PATH=/app/data/wkpool.db
-      # BELANGRIJK: Verander JWT_SECRET naar een lang, willekeurig wachtwoord!
-      - JWT_SECRET=verander-dit-naar-een-veilig-wachtwoord-van-minimaal-32-tekens
+      # JWT_SECRET wordt NIET hier vastgelegd. Zet hem in een .env-bestand naast
+      # deze compose-file (JWT_SECRET=...). Compose stopt met een duidelijke
+      # foutmelding als hij ontbreekt, zodat je nooit per ongeluk zonder geheim draait.
+      - JWT_SECRET=${JWT_SECRET:?Zet JWT_SECRET (een lang, willekeurig geheim) in een .env-bestand}
       - JWT_EXPIRES_IN=30d
     labels:
       - "com.centurylinklabs.watchtower.enable=false"

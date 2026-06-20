@@ -8,7 +8,7 @@ export function authenticate(req, res, next) {
   }
   const token = authHeader.split(' ')[1]
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default-secret')
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
     const user = db.prepare('SELECT id, username, avatar, favorite_team, role, tokens_valid_after FROM users WHERE id = ?').get(decoded.userId)
     if (!user) return res.status(401).json({ error: 'Gebruiker niet gevonden' })
     // Reject tokens issued before this user's session cutoff (set when an admin

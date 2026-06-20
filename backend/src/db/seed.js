@@ -1,6 +1,7 @@
 import dotenv from 'dotenv'
 dotenv.config()
 
+import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import db from './database.js'
 import { populateFifaRankings } from './fifaRankings.js'
@@ -260,14 +261,18 @@ const insertUser = db.prepare(`
   VALUES (?, ?, ?, ?, ?)
 `)
 
-// Credentials for the first admin come from the environment so they are not
-// baked into source control. They only apply when seeding a fresh database;
-// change the password from the admin panel afterwards regardless.
+// Credentials for the first admin come from the environment so nothing is baked
+// into source control. They only apply when seeding a fresh database. When no
+// password is provided we generate a random one and print it once, rather than
+// falling back to a well-known default — change it from the admin panel after.
 const adminUsername = process.env.ADMIN_USERNAME || 'william'
-const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
-if (!process.env.ADMIN_PASSWORD) {
-  console.warn('⚠️  ADMIN_PASSWORD niet ingesteld — er wordt een standaard wachtwoord gebruikt.')
-  console.warn('   Stel ADMIN_PASSWORD in (of wijzig het wachtwoord direct in het adminpaneel).')
+let adminPassword = process.env.ADMIN_PASSWORD
+if (!adminPassword) {
+  adminPassword = crypto.randomBytes(9).toString('base64url')
+  console.warn('⚠️  ADMIN_PASSWORD niet ingesteld — een willekeurig wachtwoord is gegenereerd:')
+  console.warn(`   Gebruikersnaam: ${adminUsername}`)
+  console.warn(`   Wachtwoord    : ${adminPassword}`)
+  console.warn('   Noteer dit nu en wijzig het na de eerste login.')
 }
 const adminHash = bcrypt.hashSync(adminPassword, 10)
 insertUser.run(adminUsername, adminHash, 'trophy', 'Netherlands', 'admin')

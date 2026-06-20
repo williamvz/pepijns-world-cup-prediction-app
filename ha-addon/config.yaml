@@ -12,7 +12,7 @@ ports:
 ports_description:
   3001/tcp: "WK Pool web interface"
 options:
-  jwt_secret: "verander-dit-naar-een-lang-veilig-wachtwoord"
+  jwt_secret: ""
 schema:
   jwt_secret: str
 panel_icon: "mdi:soccer"

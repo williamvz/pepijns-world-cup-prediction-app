@@ -28,11 +28,11 @@ COPY --from=frontend-builder /app/backend/public ./public
 # Create data directory for SQLite
 RUN mkdir -p ./data
 
-# Environment defaults
+# Environment defaults (non-secret only). JWT_SECRET must be provided at
+# runtime (docker-compose, HA add-on config, …) — never bake a secret in here.
 ENV PORT=3001
 ENV NODE_ENV=production
 ENV DB_PATH=/app/data/wkpool.db
-ENV JWT_SECRET=verander-dit-in-productie
 
 EXPOSE 3001
 
