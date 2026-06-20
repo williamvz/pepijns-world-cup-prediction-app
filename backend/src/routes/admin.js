@@ -109,6 +109,10 @@ router.put('/users/:id', (req, res) => {
   if (password) {
     updates.push('password_hash = ?')
     params.push(bcrypt.hashSync(password, 10))
+    // A new password must end any sessions opened with the old one. Stamping the
+    // session cutoff at "now" invalidates every token this user already holds.
+    updates.push('tokens_valid_after = ?')
+    params.push(Math.floor(Date.now() / 1000))
   }
   if (role !== undefined) {
     updates.push('role = ?')
@@ -156,6 +160,32 @@ router.delete('/users/:id', (req, res) => {
   deleteUser()
 
   res.json({ success: true, message: 'Gebruiker verwijderd' })
+})
+
+// POST /api/admin/users/:id/logout - Force a single user to log in again
+// Invalidates every token that user currently holds by moving their session
+// cutoff to now. Useful when one account may be compromised.
+router.post('/users/:id/logout', (req, res) => {
+  const user = db.prepare('SELECT id FROM users WHERE id = ?').get(req.params.id)
+  if (!user) return res.status(404).json({ error: 'Gebruiker niet gevonden' })
+
+  db.prepare('UPDATE users SET tokens_valid_after = ? WHERE id = ?')
+    .run(Math.floor(Date.now() / 1000), req.params.id)
+
+  res.json({ success: true, message: 'Gebruiker wordt uitgelogd op het volgende verzoek' })
+})
+
+// POST /api/admin/logout-all - Force every user (including the caller) to log in
+// again. The fastest way to clear out sessions opened with leaked credentials.
+router.post('/logout-all', (req, res) => {
+  const result = db.prepare('UPDATE users SET tokens_valid_after = ?')
+    .run(Math.floor(Date.now() / 1000))
+
+  res.json({
+    success: true,
+    message: `${result.changes} gebruiker(s) worden uitgelogd. Iedereen moet opnieuw inloggen.`,
+    affected: result.changes,
+  })
 })
 
 // GET /api/admin/phases

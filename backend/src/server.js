@@ -19,6 +19,14 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// Warn loudly when running on the built-in fallback secret: with it, anyone can
+// forge a valid (admin) token, and rotating it is also the quickest way to
+// invalidate every existing session at once.
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET niet ingesteld — er wordt een onveilig standaard secret gebruikt.')
+  console.warn('   Stel JWT_SECRET in op een lang, willekeurig geheim. Het wijzigen ervan logt iedereen direct uit.')
+}
+
 app.use(cors())
 app.use(express.json())
 

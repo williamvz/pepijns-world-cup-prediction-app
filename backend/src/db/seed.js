@@ -260,8 +260,17 @@ const insertUser = db.prepare(`
   VALUES (?, ?, ?, ?, ?)
 `)
 
-const adminHash = bcrypt.hashSync('admin123', 10)
-insertUser.run('william', adminHash, 'trophy', 'Netherlands', 'admin')
+// Credentials for the first admin come from the environment so they are not
+// baked into source control. They only apply when seeding a fresh database;
+// change the password from the admin panel afterwards regardless.
+const adminUsername = process.env.ADMIN_USERNAME || 'william'
+const adminPassword = process.env.ADMIN_PASSWORD || 'admin123'
+if (!process.env.ADMIN_PASSWORD) {
+  console.warn('⚠️  ADMIN_PASSWORD niet ingesteld — er wordt een standaard wachtwoord gebruikt.')
+  console.warn('   Stel ADMIN_PASSWORD in (of wijzig het wachtwoord direct in het adminpaneel).')
+}
+const adminHash = bcrypt.hashSync(adminPassword, 10)
+insertUser.run(adminUsername, adminHash, 'trophy', 'Netherlands', 'admin')
 
 // ── 5. SUMMARY ───────────────────────────────────────────────────────────────
 const phaseCount = db.prepare('SELECT COUNT(*) AS c FROM phases').get().c
