@@ -95,6 +95,17 @@ export function initDatabase(db) {
     );
   `)
 
+  // ── Migration: add tokens_valid_after column to users (idempotent) ────────
+  // JWTs are stateless, so changing a password does not by itself end existing
+  // sessions. This column stores a unix timestamp (seconds); any token whose
+  // `iat` (issued-at) is older than it is rejected by the auth middleware. That
+  // lets an admin force a re-login for one user or everyone, and makes a
+  // password change end that user's other sessions automatically.
+  const userColumns = db.prepare('PRAGMA table_info(users)').all()
+  if (!userColumns.some((c) => c.name === 'tokens_valid_after')) {
+    db.exec('ALTER TABLE users ADD COLUMN tokens_valid_after INTEGER')
+  }
+
   // ── Migration: add fifa_ranking column to teams (idempotent) ──────────────
   // The teams table predates this column on existing databases. Adding it via
   // ALTER TABLE only when missing keeps already-seeded data fully intact.

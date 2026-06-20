@@ -214,6 +214,38 @@ export default function AdminPanel() {
     }
   }
 
+  function handleForceLogoutUser(user) {
+    setConfirm({
+      message: `${user.username} overal uitloggen? Deze persoon moet daarna opnieuw inloggen.`,
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          await api.adminForceLogoutUser(user.id)
+          showMsg(`${user.username} wordt uitgelogd`)
+        } catch (err) {
+          showMsg(err.message || 'Mislukt')
+        }
+      },
+      onCancel: () => setConfirm(null),
+    })
+  }
+
+  function handleForceLogoutAll() {
+    setConfirm({
+      message: 'Iedereen uitloggen? Alle spelers én jijzelf moeten daarna opnieuw inloggen. Gebruik dit om sessies met een oud wachtwoord te beëindigen.',
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          const res = await api.adminForceLogoutAll()
+          showMsg(res.message || 'Iedereen wordt uitgelogd')
+        } catch (err) {
+          showMsg(err.message || 'Mislukt')
+        }
+      },
+      onCancel: () => setConfirm(null),
+    })
+  }
+
   async function handleToggleRole(user) {
     const newRole = user.role === 'admin' ? 'player' : 'admin'
     // The game always needs at least one admin — block demoting the last one.
@@ -415,6 +447,20 @@ export default function AdminPanel() {
         <div className="space-y-3">
           <h2 className="font-heading font-bold text-white mb-2">Gebruikers beheren</h2>
 
+          {/* Security: force everyone to log in again */}
+          <div className="card p-4 border border-orange-500/30">
+            <h3 className="font-heading font-bold text-white text-sm mb-1">🔒 Beveiliging</h3>
+            <p className="text-white/50 text-xs font-heading mb-3">
+              Forceer een nieuwe login voor iedereen. Handig als er nog iemand is ingelogd met een oud (gelekt) wachtwoord — alle bestaande sessies worden direct beëindigd.
+            </p>
+            <button
+              className="btn-danger text-sm py-2 px-4"
+              onClick={handleForceLogoutAll}
+            >
+              🚪 Log iedereen uit
+            </button>
+          </div>
+
           {/* Create new user form */}
           <div className="card p-4">
             <h3 className="font-heading font-bold text-white text-sm mb-3">➕ Nieuwe gebruiker aanmaken</h3>
@@ -512,6 +558,13 @@ export default function AdminPanel() {
                     onClick={() => handleResetPassword(u.id)}
                   >
                     🔑 Wachtwoord
+                  </button>
+                  <button
+                    className="btn-secondary text-xs py-1.5 px-3"
+                    onClick={() => handleForceLogoutUser(u)}
+                    title="Beëindig alle actieve sessies van deze gebruiker"
+                  >
+                    🚪 Uitloggen
                   </button>
                   <button
                     className={`text-xs py-1.5 px-3 rounded-xl font-heading font-bold transition-all active:scale-95 ${

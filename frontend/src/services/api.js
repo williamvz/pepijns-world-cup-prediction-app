@@ -40,7 +40,17 @@ async function request(method, path, body) {
     ...(body ? { body: JSON.stringify(body) } : {}),
   })
   const data = await res.json()
-  if (!res.ok) throw new Error(data.error || 'Er ging iets mis')
+  if (!res.ok) {
+    // A 401 while we were holding a token means the session is no longer valid
+    // (expired, or an admin forced a re-login). Clear it and bounce to the login
+    // screen instead of leaving the UI in a half-broken state. The login call
+    // itself is excluded so wrong credentials still surface a normal error.
+    if (res.status === 401 && getToken() && path !== '/auth/login') {
+      localStorage.removeItem('wkpool_token')
+      if (typeof window !== 'undefined') window.location.assign('/')
+    }
+    throw new Error(data.error || 'Er ging iets mis')
+  }
   return data
 }
 
@@ -184,6 +194,8 @@ export const api = {
   adminUsers: () => request('GET', '/admin/users'),
   adminUpdateUser: (id, data) => request('PUT', `/admin/users/${id}`, data),
   adminDeleteUser: (id) => request('DELETE', `/admin/users/${id}`),
+  adminForceLogoutUser: (id) => request('POST', `/admin/users/${id}/logout`),
+  adminForceLogoutAll: () => request('POST', '/admin/logout-all'),
   adminPhases: () => request('GET', '/admin/phases'),
   adminUnlockPhase: (id) => request('PUT', `/admin/phases/${id}/unlock`),
   adminSetResult: (matchId, home_score, away_score) =>
