@@ -44,12 +44,13 @@ const insertPhase = db.prepare(`
 `)
 
 const phaseData = [
-  ['Groepsfase',    1.0, 1, 1],
-  ['Ronde van 32',  1.5, 0, 2],
-  ['Kwartfinales',  2.0, 0, 3],
-  ['Halve finales', 2.5, 0, 4],
-  ['Troostfinale',  3.0, 0, 5],
-  ['Finale',        3.0, 0, 6],
+  ['Groepsfase',      1.0,  1, 1],
+  ['Ronde van 32',    1.5,  0, 2],
+  ['Achtste finales', 1.75, 0, 3],
+  ['Kwartfinales',    2.0,  0, 4],
+  ['Halve finales',   2.5,  0, 5],
+  ['Troostfinale',    3.0,  0, 6],
+  ['Finale',          3.0,  0, 7],
 ]
 
 const insertPhases = db.transaction(() => {

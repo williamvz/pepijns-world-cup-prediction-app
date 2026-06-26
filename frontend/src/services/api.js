@@ -198,8 +198,9 @@ export const api = {
   adminForceLogoutAll: () => request('POST', '/admin/logout-all'),
   adminPhases: () => request('GET', '/admin/phases'),
   adminUnlockPhase: (id) => request('PUT', `/admin/phases/${id}/unlock`),
-  adminSetResult: (matchId, home_score, away_score) =>
-    request('PUT', `/admin/matches/${matchId}`, { home_score, away_score, status: 'finished' }),
+  adminGenerateMatches: (id) => request('POST', `/admin/phases/${id}/generate`),
+  adminSetResult: (matchId, home_score, away_score, winner_team_id = null) =>
+    request('PUT', `/admin/matches/${matchId}`, { home_score, away_score, status: 'finished', winner_team_id }),
   adminUpdateMatch: (matchId, data) => request('PUT', `/admin/matches/${matchId}`, data),
   adminCreateUser: (data) => request('POST', '/admin/users', data),
 }

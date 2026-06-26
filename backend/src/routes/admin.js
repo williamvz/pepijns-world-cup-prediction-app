@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import db from '../db/database.js'
 import { authenticate, requireAdmin } from '../middleware/auth.js'
 import { processMatchResult } from '../services/scoring.js'
+import { buildRound, readyToGenerate, GENERATABLE_PHASES } from '../services/bracket.js'
 import { nowNaive } from '../utils/time.js'
 
 const router = express.Router()
@@ -191,14 +192,21 @@ router.post('/logout-all', (req, res) => {
 // GET /api/admin/phases
 router.get('/phases', (req, res) => {
   const phases = db.prepare(`
-    SELECT ph.*, COUNT(m.id) as match_count
+    SELECT
+      ph.*,
+      COUNT(m.id) as match_count,
+      COUNT(CASE WHEN m.status = 'finished' THEN 1 END) as finished_count
     FROM phases ph
     LEFT JOIN matches m ON m.phase_id = ph.id
     GROUP BY ph.id
     ORDER BY ph.unlock_order ASC
   `).all()
 
-  res.json({ phases })
+  // `can_generate` tells the admin UI whether this round can be auto-built right
+  // now (no matches yet + the round it derives from is fully played).
+  const enriched = phases.map((ph) => ({ ...ph, can_generate: readyToGenerate(ph.name) }))
+
+  res.json({ phases: enriched })
 })
 
 // PUT /api/admin/phases/:id/unlock
@@ -223,9 +231,76 @@ router.put('/phases/:id/unlock', (req, res) => {
   res.json({ phase: updated })
 })
 
+// POST /api/admin/phases/:id/generate
+// Compute the bracket for a knockout phase from the results already in the
+// database and create its matches. The Round of 32 is built from the finished
+// group stage (12 winners + 12 runners-up + 8 best thirds); every later round is
+// built from the winners (or, for the third-place match, the losers) of the
+// previous round. Guarded so it can never run twice or before its source round
+// is decided.
+router.post('/phases/:id/generate', (req, res) => {
+  const phase = db.prepare('SELECT * FROM phases WHERE id = ?').get(req.params.id)
+  if (!phase) return res.status(404).json({ error: 'Fase niet gevonden' })
+
+  if (!GENERATABLE_PHASES.includes(phase.name)) {
+    return res.status(400).json({
+      error: `Automatisch genereren is niet beschikbaar voor "${phase.name}".`,
+    })
+  }
+
+  const existing = db
+    .prepare('SELECT COUNT(*) AS c FROM matches WHERE phase_id = ?')
+    .get(phase.id).c
+  if (existing > 0) {
+    return res.status(400).json({
+      error: `Er bestaan al ${existing} wedstrijden voor deze fase. Genereren overgeslagen.`,
+    })
+  }
+
+  let fixtures
+  try {
+    fixtures = buildRound(phase.name)
+  } catch (err) {
+    // buildRound throws a ready-to-show Dutch message when the data isn't ready.
+    return res.status(400).json({ error: err.message })
+  }
+
+  const insertMatch = db.prepare(`
+    INSERT INTO matches
+      (phase_id, group_name, home_team_id, away_team_id, match_datetime, venue, city, status, home_score, away_score, match_number)
+    VALUES (?, NULL, ?, ?, ?, ?, ?, 'scheduled', NULL, NULL, ?)
+  `)
+  const insertAll = db.transaction(() => {
+    for (const f of fixtures) {
+      insertMatch.run(
+        phase.id,
+        f.home_team_id,
+        f.away_team_id,
+        f.match_datetime,
+        f.venue,
+        f.city,
+        f.match_number
+      )
+    }
+  })
+  insertAll()
+
+  res.status(201).json({
+    message: `${fixtures.length} wedstrijden aangemaakt voor ${phase.name}.`,
+    matches: fixtures.map((f) => ({
+      match_number: f.match_number,
+      match_datetime: f.match_datetime,
+      home_team: f.home_team.name,
+      home_slot: f.home_slot,
+      away_team: f.away_team.name,
+      away_slot: f.away_slot,
+    })),
+  })
+})
+
 // PUT /api/admin/matches/:id
 router.put('/matches/:id', (req, res) => {
-  const { match_datetime, venue, city, status, home_score, away_score } = req.body
+  const { match_datetime, venue, city, status, home_score, away_score, winner_team_id } = req.body
   const matchId = req.params.id
 
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(matchId)
@@ -244,6 +319,20 @@ router.put('/matches/:id', (req, res) => {
   if (status !== undefined) { updates.push('status = ?'); params.push(status) }
   if (home_score !== undefined) { updates.push('home_score = ?'); params.push(home_score) }
   if (away_score !== undefined) { updates.push('away_score = ?'); params.push(away_score) }
+
+  // Record (or clear) the penalty-shootout winner whenever a score is saved.
+  // It only applies to a level score; a decisive result clears any stale winner.
+  if (home_score !== undefined && away_score !== undefined) {
+    const isDraw = Number(home_score) === Number(away_score)
+    let winner = null
+    if (isDraw && winner_team_id != null) {
+      if (![match.home_team_id, match.away_team_id].includes(Number(winner_team_id))) {
+        return res.status(400).json({ error: 'Ongeldige winnaar voor strafschoppen' })
+      }
+      winner = Number(winner_team_id)
+    }
+    updates.push('winner_team_id = ?'); params.push(winner)
+  }
 
   if (updates.length === 0) {
     return res.status(400).json({ error: 'Geen velden om bij te werken' })

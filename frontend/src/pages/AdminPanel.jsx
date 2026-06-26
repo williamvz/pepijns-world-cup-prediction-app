@@ -315,6 +315,23 @@ export default function AdminPanel() {
     })
   }
 
+  async function handleGenerateMatches(phase) {
+    setConfirm({
+      message: `Wedstrijden voor "${phase.name}" genereren op basis van de huidige groepsuitslagen? De teams worden bepaald uit de eindstand (winnaars, runners-up en beste nummers 3).`,
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          const res = await api.adminGenerateMatches(phase.id)
+          showMsg(res.message || 'Wedstrijden gegenereerd!')
+          fetchAll()
+        } catch (err) {
+          showMsg(err.message || 'Genereren mislukt')
+        }
+      },
+      onCancel: () => setConfirm(null),
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -414,6 +431,10 @@ export default function AdminPanel() {
           ) : (
             phases.map((phase) => {
               const isLocked = !phase.is_unlocked
+              const matchCount = phase.match_count ?? 0
+              // The backend decides whether a round can be auto-built right now
+              // (no matches yet + the round it derives from is fully played).
+              const canGenerate = !!phase.can_generate
               return (
                 <div key={phase.id} className="card p-4 flex items-center gap-4">
                   <div className="text-3xl">{isLocked ? '🔒' : '🔓'}</div>
@@ -421,20 +442,31 @@ export default function AdminPanel() {
                     <div className="font-heading font-bold text-white">{phase.name || phase.phase}</div>
                     <div className="text-white/40 text-xs font-heading">
                       {isLocked ? 'Gesloten' : 'Ontgrendeld'}
+                      {` · ${matchCount} ${matchCount === 1 ? 'wedstrijd' : 'wedstrijden'}`}
                       {phase.unlocked_at && ` op ${format(new Date(phase.unlocked_at), 'd MMM yyyy', { locale: nl })}`}
                     </div>
                   </div>
-                  {isLocked && (
-                    <button
-                      className="btn-primary text-sm py-2 px-4"
-                      onClick={() => handleUnlockPhase(phase)}
-                    >
-                      🔓 Ontgrendel
-                    </button>
-                  )}
-                  {!isLocked && (
-                    <span className="text-green-400 font-heading font-bold text-sm">✓ Actief</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {canGenerate && (
+                      <button
+                        className="btn-secondary text-sm py-2 px-4"
+                        onClick={() => handleGenerateMatches(phase)}
+                      >
+                        ⚙️ Genereer wedstrijden
+                      </button>
+                    )}
+                    {isLocked && (
+                      <button
+                        className="btn-primary text-sm py-2 px-4"
+                        onClick={() => handleUnlockPhase(phase)}
+                      >
+                        🔓 Ontgrendel
+                      </button>
+                    )}
+                    {!isLocked && (
+                      <span className="text-green-400 font-heading font-bold text-sm">✓ Actief</span>
+                    )}
+                  </div>
                 </div>
               )
             })

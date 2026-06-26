@@ -7,10 +7,12 @@ export function normalizeMatch(m) {
     ...m,
     // Flat team fields (components use these directly)
     home_team: typeof homeTeam === 'object' ? homeTeam?.name : homeTeam,
+    home_team_id: typeof homeTeam === 'object' ? homeTeam?.id : m.home_team_id,
     home_flag: typeof homeTeam === 'object' ? homeTeam?.flag_emoji : (m.home_flag || ''),
     home_code: typeof homeTeam === 'object' ? homeTeam?.code : m.home_code,
     home_rank: typeof homeTeam === 'object' ? homeTeam?.fifa_ranking : m.home_rank,
     away_team: typeof awayTeam === 'object' ? awayTeam?.name : awayTeam,
+    away_team_id: typeof awayTeam === 'object' ? awayTeam?.id : m.away_team_id,
     away_flag: typeof awayTeam === 'object' ? awayTeam?.flag_emoji : (m.away_flag || ''),
     away_code: typeof awayTeam === 'object' ? awayTeam?.code : m.away_code,
     away_rank: typeof awayTeam === 'object' ? awayTeam?.fifa_ranking : m.away_rank,

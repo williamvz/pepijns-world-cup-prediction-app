@@ -15,6 +15,15 @@ function isMatchLocked(matchDatetime) {
   return matchDatetime <= nowNaive(30 * 60 * 1000)
 }
 
+// A match can only be predicted once its phase has been released by an admin.
+// Knockout phases stay locked until the admin unlocks them; the group phase is
+// unlocked from the start. Fails open for a match with no/unknown phase.
+function isPhaseLocked(phaseId) {
+  if (!phaseId) return false
+  const phase = db.prepare('SELECT is_unlocked FROM phases WHERE id = ?').get(phaseId)
+  return phase ? phase.is_unlocked !== 1 : false
+}
+
 // GET /api/predictions
 router.get('/', (req, res) => {
   const predictions = db.prepare(`
@@ -118,6 +127,10 @@ router.post('/', (req, res) => {
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(match_id)
   if (!match) return res.status(404).json({ error: 'Wedstrijd niet gevonden' })
 
+  if (isPhaseLocked(match.phase_id)) {
+    return res.status(400).json({ error: 'Deze fase is nog niet vrijgegeven om te voorspellen' })
+  }
+
   if (isMatchLocked(match.match_datetime)) {
     return res.status(400).json({ error: 'Voorspelling vergrendeld - wedstrijd begint bijna of is al begonnen' })
   }
@@ -156,6 +169,10 @@ router.put('/:matchId', (req, res) => {
 
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(match_id)
   if (!match) return res.status(404).json({ error: 'Wedstrijd niet gevonden' })
+
+  if (isPhaseLocked(match.phase_id)) {
+    return res.status(400).json({ error: 'Deze fase is nog niet vrijgegeven om te voorspellen' })
+  }
 
   if (isMatchLocked(match.match_datetime)) {
     return res.status(400).json({ error: 'Voorspelling vergrendeld - wedstrijd begint bijna of is al begonnen' })

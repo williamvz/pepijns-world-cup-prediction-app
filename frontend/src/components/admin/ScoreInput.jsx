@@ -6,6 +6,7 @@ import { api } from '../../services/api'
 export default function ScoreInput({ match, onSave }) {
   const [home, setHome] = useState(match.home_score ?? '')
   const [away, setAway] = useState(match.away_score ?? '')
+  const [winner, setWinner] = useState(match.winner_team_id ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
@@ -15,9 +16,20 @@ export default function ScoreInput({ match, onSave }) {
   const homeFlag = match.home_flag || ''
   const awayFlag = match.away_flag || ''
 
+  // A level score in a knockout phase is decided on penalties, so the admin must
+  // record who advanced. Group matches can simply end in a draw.
+  const isKnockout = !!match.phase && match.phase !== 'Groepsfase'
+  const isDraw = home !== '' && away !== '' && parseInt(home) === parseInt(away)
+  const needsShootoutWinner = isKnockout && isDraw
+
   async function handleSave() {
     if (home === '' || away === '') {
       setError('Vul beide scores in.')
+      return
+    }
+    if (needsShootoutWinner && !winner) {
+      setError('Kies wie er doorging na strafschoppen.')
+      setConfirming(false)
       return
     }
     if (!confirming) {
@@ -28,7 +40,7 @@ export default function ScoreInput({ match, onSave }) {
     setSaving(true)
     setConfirming(false)
     try {
-      await api.adminSetResult(match.id, parseInt(home), parseInt(away))
+      await api.adminSetResult(match.id, parseInt(home), parseInt(away), needsShootoutWinner ? winner : null)
       setSuccess(true)
       onSave && onSave(match.id, parseInt(home), parseInt(away))
       setTimeout(() => setSuccess(false), 3000)
@@ -112,6 +124,38 @@ export default function ScoreInput({ match, onSave }) {
           {saving ? '...' : confirming ? 'Bevestig!' : success ? '✓ Opgeslagen' : 'Sla op'}
         </button>
       </div>
+
+      {needsShootoutWinner && (
+        <div className="mb-3">
+          <div className="text-xs text-white/50 font-heading text-center mb-2">
+            🥅 Gelijkspel — wie ging door na strafschoppen?
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setWinner(match.home_team_id); setConfirming(false); setSuccess(false) }}
+              className={`flex-1 py-2 px-3 rounded-xl text-sm font-heading font-bold border transition-all ${
+                winner === match.home_team_id
+                  ? 'bg-gold-500/20 text-gold-300 border-gold-500/40'
+                  : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'
+              }`}
+            >
+              {homeFlag} {match.home_team}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setWinner(match.away_team_id); setConfirming(false); setSuccess(false) }}
+              className={`flex-1 py-2 px-3 rounded-xl text-sm font-heading font-bold border transition-all ${
+                winner === match.away_team_id
+                  ? 'bg-gold-500/20 text-gold-300 border-gold-500/40'
+                  : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'
+              }`}
+            >
+              {match.away_team} {awayFlag}
+            </button>
+          </div>
+        </div>
+      )}
 
       {confirming && (
         <div className="text-xs text-orange-400 font-heading text-center">

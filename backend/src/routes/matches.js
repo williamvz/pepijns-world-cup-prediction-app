@@ -46,6 +46,7 @@ function formatMatch(row) {
     status: row.status,
     home_score: row.home_score,
     away_score: row.away_score,
+    winner_team_id: row.winner_team_id,
     match_number: row.match_number,
     is_locked: isMatchLocked(row.match_datetime),
     home_team: {
@@ -65,9 +66,16 @@ function formatMatch(row) {
   }
 }
 
+// Only show matches whose phase has been released. Knockout phases stay hidden
+// until an admin unlocks them, so a generated-but-locked bracket never leaks who
+// advanced. Fails open for a match with no joined phase.
+const ONLY_UNLOCKED = '(ph.is_unlocked = 1 OR ph.id IS NULL)'
+
 // GET /api/matches
 router.get('/', (req, res) => {
-  const rows = db.prepare(matchWithTeamsSQL + ' ORDER BY m.match_datetime ASC').all()
+  const rows = db
+    .prepare(matchWithTeamsSQL + ` WHERE ${ONLY_UNLOCKED} ORDER BY m.match_datetime ASC`)
+    .all()
   const matches = rows.map(formatMatch)
 
   // Group by phase, then by group_name
@@ -96,7 +104,7 @@ router.get('/', (req, res) => {
 router.get('/upcoming', (req, res) => {
   const cutoff = nowNaive(30 * 60 * 1000)
   const rows = db.prepare(matchWithTeamsSQL + `
-    WHERE m.status = 'scheduled' AND m.match_datetime > ?
+    WHERE m.status = 'scheduled' AND m.match_datetime > ? AND ${ONLY_UNLOCKED}
     ORDER BY m.match_datetime ASC
     LIMIT 5
   `).all(cutoff)
