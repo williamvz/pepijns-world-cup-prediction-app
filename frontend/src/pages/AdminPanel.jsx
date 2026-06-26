@@ -432,9 +432,9 @@ export default function AdminPanel() {
             phases.map((phase) => {
               const isLocked = !phase.is_unlocked
               const matchCount = phase.match_count ?? 0
-              // Only the Round of 32 can be auto-generated for now, and only when
-              // it has no matches yet.
-              const canGenerate = phase.name === 'Ronde van 32' && matchCount === 0
+              // The backend decides whether a round can be auto-built right now
+              // (no matches yet + the round it derives from is fully played).
+              const canGenerate = !!phase.can_generate
               return (
                 <div key={phase.id} className="card p-4 flex items-center gap-4">
                   <div className="text-3xl">{isLocked ? '🔒' : '🔓'}</div>

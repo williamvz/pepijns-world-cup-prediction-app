@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import db from '../db/database.js'
 import { authenticate, requireAdmin } from '../middleware/auth.js'
 import { processMatchResult } from '../services/scoring.js'
-import { buildRoundOf32 } from '../services/bracket.js'
+import { buildRound, readyToGenerate, GENERATABLE_PHASES } from '../services/bracket.js'
 import { nowNaive } from '../utils/time.js'
 
 const router = express.Router()
@@ -192,14 +192,21 @@ router.post('/logout-all', (req, res) => {
 // GET /api/admin/phases
 router.get('/phases', (req, res) => {
   const phases = db.prepare(`
-    SELECT ph.*, COUNT(m.id) as match_count
+    SELECT
+      ph.*,
+      COUNT(m.id) as match_count,
+      COUNT(CASE WHEN m.status = 'finished' THEN 1 END) as finished_count
     FROM phases ph
     LEFT JOIN matches m ON m.phase_id = ph.id
     GROUP BY ph.id
     ORDER BY ph.unlock_order ASC
   `).all()
 
-  res.json({ phases })
+  // `can_generate` tells the admin UI whether this round can be auto-built right
+  // now (no matches yet + the round it derives from is fully played).
+  const enriched = phases.map((ph) => ({ ...ph, can_generate: readyToGenerate(ph.name) }))
+
+  res.json({ phases: enriched })
 })
 
 // PUT /api/admin/phases/:id/unlock
@@ -225,17 +232,19 @@ router.put('/phases/:id/unlock', (req, res) => {
 })
 
 // POST /api/admin/phases/:id/generate
-// Compute the bracket for a knockout phase from the results that are already in
-// the database and create its matches. Currently supports the Round of 32, built
-// from the finished group stage (12 winners + 12 runners-up + 8 best thirds).
-// Guarded so it can never run twice or on an unfinished group stage.
+// Compute the bracket for a knockout phase from the results already in the
+// database and create its matches. The Round of 32 is built from the finished
+// group stage (12 winners + 12 runners-up + 8 best thirds); every later round is
+// built from the winners (or, for the third-place match, the losers) of the
+// previous round. Guarded so it can never run twice or before its source round
+// is decided.
 router.post('/phases/:id/generate', (req, res) => {
   const phase = db.prepare('SELECT * FROM phases WHERE id = ?').get(req.params.id)
   if (!phase) return res.status(404).json({ error: 'Fase niet gevonden' })
 
-  if (phase.name !== 'Ronde van 32') {
+  if (!GENERATABLE_PHASES.includes(phase.name)) {
     return res.status(400).json({
-      error: 'Automatisch genereren is voorlopig alleen beschikbaar voor de Ronde van 32.',
+      error: `Automatisch genereren is niet beschikbaar voor "${phase.name}".`,
     })
   }
 
@@ -250,9 +259,9 @@ router.post('/phases/:id/generate', (req, res) => {
 
   let fixtures
   try {
-    fixtures = buildRoundOf32()
+    fixtures = buildRound(phase.name)
   } catch (err) {
-    // buildRoundOf32 throws a ready-to-show Dutch message when the data isn't ready.
+    // buildRound throws a ready-to-show Dutch message when the data isn't ready.
     return res.status(400).json({ error: err.message })
   }
 

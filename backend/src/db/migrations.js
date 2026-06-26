@@ -117,6 +117,27 @@ export function initDatabase(db) {
   // where teams are inserted later by the seed script).
   populateFifaRankings(db)
 
+  // ── Migration: ensure the knockout phase list includes the Round of 16 ────
+  // Older databases were seeded with phases that jumped straight from "Ronde van
+  // 32" to "Kwartfinales", skipping the Round of 16. Insert "Achtste finales" in
+  // the right spot and renumber unlock_order so the rounds stay in sequence.
+  // Only touches an already-seeded phases table — a fresh DB is filled by the
+  // seed script (which already lists the correct phases), so this is a no-op
+  // there. is_unlocked is left untouched, so an already-released phase stays
+  // released.
+  const phaseCount = db.prepare('SELECT COUNT(*) AS c FROM phases').get().c
+  if (phaseCount > 0) {
+    const hasR16 = db.prepare("SELECT id FROM phases WHERE name = 'Achtste finales'").get()
+    if (!hasR16) {
+      db.prepare(
+        "INSERT INTO phases (name, multiplier, is_unlocked, unlock_order) VALUES ('Achtste finales', 1.75, 0, 3)"
+      ).run()
+    }
+    const phaseOrder = ['Groepsfase', 'Ronde van 32', 'Achtste finales', 'Kwartfinales', 'Halve finales', 'Troostfinale', 'Finale']
+    const setOrder = db.prepare('UPDATE phases SET unlock_order = ? WHERE name = ?')
+    phaseOrder.forEach((name, i) => setOrder.run(i + 1, name))
+  }
+
   // Seed achievement definitions if empty
   const count = db.prepare('SELECT COUNT(*) as cnt FROM achievement_definitions').get()
   if (count.cnt === 0) {
