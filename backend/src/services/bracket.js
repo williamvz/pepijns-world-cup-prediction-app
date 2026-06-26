@@ -142,7 +142,7 @@ function loadRoundMatches(phaseName) {
   if (!phase) return null
   return db
     .prepare(`
-      SELECT m.match_number, m.status, m.home_score, m.away_score,
+      SELECT m.match_number, m.status, m.home_score, m.away_score, m.winner_team_id,
         m.home_team_id, m.away_team_id,
         ht.name AS home_name, at.name AS away_name
       FROM matches m
@@ -160,13 +160,20 @@ function resolveSide(match, take) {
   if (match.status !== 'finished' || match.home_score === null || match.away_score === null) {
     throw new Error(`Wedstrijd #${match.match_number} is nog niet gespeeld. Vul eerst alle uitslagen van de vorige ronde in.`)
   }
+  let homeWon
   if (match.home_score === match.away_score) {
-    throw new Error(
-      `Wedstrijd #${match.match_number} (${match.home_name} - ${match.away_name}) eindigde gelijk. ` +
-        'Vul een beslissende uitslag in (na verlenging of strafschoppen) zodat de winnaar vaststaat.'
-    )
+    // Level after extra time: the shootout winner (winner_team_id) decides who
+    // advances. Without it we cannot know, so ask the admin to set it.
+    if (!match.winner_team_id) {
+      throw new Error(
+        `Wedstrijd #${match.match_number} (${match.home_name} - ${match.away_name}) eindigde gelijk. ` +
+          'Kies bij de uitslag wie er doorging na strafschoppen.'
+      )
+    }
+    homeWon = match.winner_team_id === match.home_team_id
+  } else {
+    homeWon = match.home_score > match.away_score
   }
-  const homeWon = match.home_score > match.away_score
   const advance = (take === 'winner') === homeWon
   return {
     team: { id: advance ? match.home_team_id : match.away_team_id, name: advance ? match.home_name : match.away_name },
@@ -231,7 +238,13 @@ export function readyToGenerate(phaseName) {
 
   const source = loadRoundMatches(cfg.source)
   if (!source || source.length === 0) return false
-  // Ready once every source match has a result; the build step surfaces the
-  // precise reason (e.g. a draw) if one still can't be resolved.
-  return source.every((m) => m.status === 'finished' && m.home_score !== null && m.away_score !== null)
+  // Ready once every source match is decided: a finished result, and for a level
+  // score a recorded shootout winner (otherwise we can't tell who advanced).
+  return source.every(
+    (m) =>
+      m.status === 'finished' &&
+      m.home_score !== null &&
+      m.away_score !== null &&
+      (m.home_score !== m.away_score || m.winner_team_id != null)
+  )
 }

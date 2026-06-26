@@ -46,6 +46,7 @@ function formatMatch(row) {
     status: row.status,
     home_score: row.home_score,
     away_score: row.away_score,
+    winner_team_id: row.winner_team_id,
     match_number: row.match_number,
     is_locked: isMatchLocked(row.match_datetime),
     home_team: {

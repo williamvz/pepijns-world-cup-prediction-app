@@ -300,7 +300,7 @@ router.post('/phases/:id/generate', (req, res) => {
 
 // PUT /api/admin/matches/:id
 router.put('/matches/:id', (req, res) => {
-  const { match_datetime, venue, city, status, home_score, away_score } = req.body
+  const { match_datetime, venue, city, status, home_score, away_score, winner_team_id } = req.body
   const matchId = req.params.id
 
   const match = db.prepare('SELECT * FROM matches WHERE id = ?').get(matchId)
@@ -319,6 +319,20 @@ router.put('/matches/:id', (req, res) => {
   if (status !== undefined) { updates.push('status = ?'); params.push(status) }
   if (home_score !== undefined) { updates.push('home_score = ?'); params.push(home_score) }
   if (away_score !== undefined) { updates.push('away_score = ?'); params.push(away_score) }
+
+  // Record (or clear) the penalty-shootout winner whenever a score is saved.
+  // It only applies to a level score; a decisive result clears any stale winner.
+  if (home_score !== undefined && away_score !== undefined) {
+    const isDraw = Number(home_score) === Number(away_score)
+    let winner = null
+    if (isDraw && winner_team_id != null) {
+      if (![match.home_team_id, match.away_team_id].includes(Number(winner_team_id))) {
+        return res.status(400).json({ error: 'Ongeldige winnaar voor strafschoppen' })
+      }
+      winner = Number(winner_team_id)
+    }
+    updates.push('winner_team_id = ?'); params.push(winner)
+  }
 
   if (updates.length === 0) {
     return res.status(400).json({ error: 'Geen velden om bij te werken' })

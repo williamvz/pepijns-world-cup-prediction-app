@@ -117,6 +117,15 @@ export function initDatabase(db) {
   // where teams are inserted later by the seed script).
   populateFifaRankings(db)
 
+  // ── Migration: add winner_team_id column to matches (idempotent) ──────────
+  // Knockout matches that end level are decided on penalties. The score alone
+  // can't say who advanced, so this column records the shootout winner. It is
+  // null for every group match and for any knockout match with a decisive score.
+  const matchColumns = db.prepare('PRAGMA table_info(matches)').all()
+  if (!matchColumns.some((c) => c.name === 'winner_team_id')) {
+    db.exec('ALTER TABLE matches ADD COLUMN winner_team_id INTEGER REFERENCES teams(id)')
+  }
+
   // ── Migration: ensure the knockout phase list includes the Round of 16 ────
   // Older databases were seeded with phases that jumped straight from "Ronde van
   // 32" to "Kwartfinales", skipping the Round of 16. Insert "Achtste finales" in
