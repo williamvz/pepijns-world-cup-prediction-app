@@ -1,98 +1,98 @@
 import db from '../db/database.js'
 import { getQualifiers } from './standings.js'
 
-// ── Schedules ────────────────────────────────────────────────────────────────
-// Knockout kickoff times as naive Amsterdam wall-clock strings, matching how
-// every other match is stored. These are sensible defaults that follow the real
-// 2026 calendar shape; the admin can fine-tune any fixture afterwards in the
-// "Wedstrijden" tab.
-function spread(days, times, count) {
-  const out = []
-  for (let i = 0; i < count; i++) {
-    const day = days[Math.min(Math.floor(i / times.length), days.length - 1)]
-    out.push(`${day}T${times[i % times.length]}`)
-  }
-  return out
-}
+// ── Official FIFA World Cup 2026 knockout bracket ─────────────────────────────
+// The 2026 bracket is FIXED in advance: which group position meets which in the
+// Round of 32, and how each winner flows into the later rounds, is decided by the
+// official schedule — NOT by seeding or performance. We therefore encode the
+// official bracket verbatim instead of computing a generic single-elimination
+// seeding (which produced the wrong fixtures before).
+//
+// Slot labels:
+//   1X = winner of group X        2X = runner-up of group X
+//   3X = third-placed team of group X (only the eight best thirds advance; in
+//        2026 those came from groups B, D, E, F, I, J, K and L).
+//
+// Kick-off times are naive Amsterdam wall-clock strings (Europe/Amsterdam), the
+// same format every other match uses, taken straight from the official schedule.
+// The admin can fine-tune any fixture afterwards under the "Wedstrijden" tab.
 
-// Per-round configuration. `source`/`take` drive how a round is built from the
-// previous one; the Round of 32 is special (built from the group standings).
-// `firstNumber` keeps match numbers contiguous across the whole tournament
-// (group stage is 1–72, knockouts 73–104).
-const ROUNDS = {
-  'Ronde van 32': {
-    firstNumber: 73,
-    schedule: spread(
-      ['2026-06-28', '2026-06-29', '2026-06-30', '2026-07-01', '2026-07-02', '2026-07-03'],
-      ['18:00:00', '21:00:00', '23:00:00'],
-      16
-    ),
-  },
+// Round of 32 — match numbers 73–88, listed in official bracket order.
+// [matchNumber, homeSlot, awaySlot, datetime]   (home = team listed on top in
+// the official bracket)
+const ROUND_OF_32 = [
+  [73, '2A', '2B', '2026-06-28T21:00:00'], // Zuid-Afrika – Canada
+  [74, '1E', '3D', '2026-06-29T22:30:00'], // Duitsland – Paraguay
+  [75, '1F', '2C', '2026-06-30T03:00:00'], // Nederland – Marokko
+  [76, '1C', '2F', '2026-06-29T19:00:00'], // Brazilië – Japan
+  [77, '1I', '3F', '2026-06-30T23:00:00'], // Frankrijk – Zweden
+  [78, '2E', '2I', '2026-06-30T19:00:00'], // Ivoorkust – Noorwegen
+  [79, '1A', '3E', '2026-07-01T03:00:00'], // Mexico – Ecuador
+  [80, '1L', '3K', '2026-07-01T18:00:00'], // Engeland – Congo DR
+  [81, '1D', '3B', '2026-07-02T02:00:00'], // VS – Bosnië-Herzegovina
+  [82, '1G', '3I', '2026-07-01T22:00:00'], // België – Senegal
+  [83, '2K', '2L', '2026-07-03T01:00:00'], // Portugal – Kroatië
+  [84, '1H', '2J', '2026-07-02T21:00:00'], // Spanje – Oostenrijk
+  [85, '1B', '3J', '2026-07-03T05:00:00'], // Zwitserland – Algerije
+  [86, '1J', '2H', '2026-07-04T00:00:00'], // Argentinië – Kaapverdië
+  [87, '1K', '3L', '2026-07-04T03:30:00'], // Colombia – Ghana
+  [88, '2D', '2G', '2026-07-03T20:00:00'], // Australië – Egypte
+]
+
+// Later rounds — every fixture is built from two earlier matches, referenced by
+// match number. `take` decides which side advances: the winners, or (for the
+// third-place play-off) the losers of the two semi-finals.
+// Each entry: [matchNumber, sourceA, sourceB, datetime]   (home = winner/loser
+// of sourceA).
+//
+// NB: the Round of 16 pairings are NOT consecutive match numbers — match 89 is
+// winner-74 vs winner-77, match 90 is winner-73 vs winner-75, etc. — so the tree
+// is encoded explicitly rather than by pairing neighbours.
+const LATER_ROUNDS = {
   'Achtste finales': {
-    source: 'Ronde van 32', take: 'winner', firstNumber: 89,
-    schedule: spread(['2026-07-04', '2026-07-05', '2026-07-06', '2026-07-07'], ['18:00:00', '22:00:00'], 8),
+    take: 'winner',
+    fixtures: [
+      [89, 74, 77, '2026-07-04T23:00:00'],
+      [90, 73, 75, '2026-07-04T19:00:00'],
+      [91, 76, 78, '2026-07-05T22:00:00'],
+      [92, 79, 80, '2026-07-06T02:00:00'],
+      [93, 83, 84, '2026-07-06T21:00:00'],
+      [94, 81, 82, '2026-07-07T02:00:00'],
+      [95, 86, 88, '2026-07-07T18:00:00'],
+      [96, 85, 87, '2026-07-07T22:00:00'],
+    ],
   },
   'Kwartfinales': {
-    source: 'Achtste finales', take: 'winner', firstNumber: 97,
-    schedule: spread(['2026-07-09', '2026-07-10', '2026-07-11'], ['18:00:00', '22:00:00'], 4),
+    take: 'winner',
+    fixtures: [
+      [97, 89, 90, '2026-07-09T22:00:00'],
+      [98, 93, 94, '2026-07-10T21:00:00'],
+      [99, 91, 92, '2026-07-11T23:00:00'],
+      [100, 95, 96, '2026-07-12T03:00:00'],
+    ],
   },
   'Halve finales': {
-    source: 'Kwartfinales', take: 'winner', firstNumber: 101,
-    schedule: spread(['2026-07-14', '2026-07-15'], ['21:00:00'], 2),
+    take: 'winner',
+    fixtures: [
+      [101, 97, 98, '2026-07-14T21:00:00'],
+      [102, 99, 100, '2026-07-15T21:00:00'],
+    ],
   },
+  // Third-place play-off: the two losing semi-finalists. Times for the last two
+  // fixtures were not on the official screenshot — verify/adjust if needed.
   'Troostfinale': {
-    source: 'Halve finales', take: 'loser', firstNumber: 103,
-    schedule: ['2026-07-18T18:00:00'],
+    take: 'loser',
+    fixtures: [[103, 101, 102, '2026-07-18T21:00:00']],
   },
   'Finale': {
-    source: 'Halve finales', take: 'winner', firstNumber: 104,
-    schedule: ['2026-07-19T18:00:00'],
+    take: 'winner',
+    fixtures: [[104, 101, 102, '2026-07-19T21:00:00']],
   },
 }
 
-export const GENERATABLE_PHASES = Object.keys(ROUNDS)
+export const GENERATABLE_PHASES = ['Ronde van 32', ...Object.keys(LATER_ROUNDS)]
 
-// ── Round of 32 (from group standings) ───────────────────────────────────────
-
-// Standard single-elimination seeding order for `n` slots (n a power of two).
-// Produces the bracket positions so that seed 1 and seed 2 can only meet in the
-// final, seeds 1–4 only in the semis, etc. Each first-round match pairs seed s
-// with seed (n+1-s).
-function seedBracketOrder(n) {
-  let order = [1, 2]
-  while (order.length < n) {
-    const sum = order.length * 2 + 1
-    const next = []
-    for (const s of order) {
-      next.push(s)
-      next.push(sum - s)
-    }
-    order = next
-  }
-  return order
-}
-
-function isRematch(a, b) {
-  return a.group === b.group
-}
-
-// Greedily swap the lower-seeded sides between matches so no fixture is a
-// group-stage rematch (mirrors FIFA's "no early rematch" intent).
-function avoidRematches(pairs) {
-  for (let i = 0; i < pairs.length; i++) {
-    if (!isRematch(pairs[i].home, pairs[i].away)) continue
-    for (let j = 0; j < pairs.length; j++) {
-      if (j === i) continue
-      if (!isRematch(pairs[i].home, pairs[j].away) && !isRematch(pairs[j].home, pairs[i].away)) {
-        const tmp = pairs[i].away
-        pairs[i].away = pairs[j].away
-        pairs[j].away = tmp
-        break
-      }
-    }
-  }
-  return pairs
-}
+// ── Round of 32 (from the group standings) ────────────────────────────────────
 
 export function buildRoundOf32() {
   const q = getQualifiers()
@@ -110,36 +110,46 @@ export function buildRoundOf32() {
     throw new Error('Onvoldoende nummers 3 om de beste 8 te bepalen.')
   }
 
-  // Seeds 1..32: winners (best→worst), then runners-up, then the 8 best thirds.
-  const seedList = [...q.winners, ...q.runnersUp, ...q.bestThirds]
-  const order = seedBracketOrder(32)
-  const schedule = ROUNDS['Ronde van 32'].schedule
+  // Map every slot label (1A, 2C, 3E, …) to the qualifying team behind it.
+  const bySlot = {}
+  for (const w of q.winners) bySlot[w.slot] = w // 1A..1L
+  for (const r of q.runnersUp) bySlot[r.slot] = r // 2A..2L
+  for (const t of q.bestThirds) bySlot[t.slot] = t // 3X for the eight best thirds
 
-  let pairs = []
-  for (let k = 0; k < 16; k++) {
-    pairs.push({ home: seedList[order[2 * k] - 1], away: seedList[order[2 * k + 1] - 1] })
+  const resolve = (slot) => {
+    const entry = bySlot[slot]
+    if (!entry) {
+      throw new Error(
+        slot[0] === '3'
+          ? `De nummer 3 van groep ${slot[1]} hoort volgens het officiële schema bij de beste 8, ` +
+              'maar staat dat niet in de huidige eindstand. Controleer de groepsuitslagen.'
+          : `Geen team gevonden voor slot ${slot}.`
+      )
+    }
+    return entry
   }
-  pairs = avoidRematches(pairs)
 
-  return pairs.map((p, i) => ({
-    home_team_id: p.home.team.id,
-    away_team_id: p.away.team.id,
-    match_datetime: schedule[i],
-    match_number: 73 + i,
-    venue: null,
-    city: null,
-    home_team: p.home.team,
-    away_team: p.away.team,
-    home_slot: p.home.slot,
-    away_slot: p.away.slot,
-  }))
+  return ROUND_OF_32.map(([number, homeSlot, awaySlot, datetime]) => {
+    const home = resolve(homeSlot)
+    const away = resolve(awaySlot)
+    return {
+      home_team_id: home.team.id,
+      away_team_id: away.team.id,
+      match_datetime: datetime,
+      match_number: number,
+      venue: null,
+      city: null,
+      home_team: home.team,
+      away_team: away.team,
+      home_slot: homeSlot,
+      away_slot: awaySlot,
+    }
+  })
 }
 
-// ── Later rounds (from the winners/losers of the previous round) ──────────────
+// ── Later rounds (from the winners/losers of earlier matches) ─────────────────
 
-function loadRoundMatches(phaseName) {
-  const phase = db.prepare('SELECT id FROM phases WHERE name = ?').get(phaseName)
-  if (!phase) return null
+function loadMatchByNumber(number) {
   return db
     .prepare(`
       SELECT m.match_number, m.status, m.home_score, m.away_score, m.winner_team_id,
@@ -148,17 +158,19 @@ function loadRoundMatches(phaseName) {
       FROM matches m
       LEFT JOIN teams ht ON ht.id = m.home_team_id
       LEFT JOIN teams at ON at.id = m.away_team_id
-      WHERE m.phase_id = ?
-      ORDER BY m.match_number ASC
+      WHERE m.match_number = ?
     `)
-    .all(phase.id)
+    .get(number)
 }
 
 // Resolve the side that advances (or is eliminated) from a finished knockout
 // match. Throws a user-facing Dutch error if the match isn't decided yet.
-function resolveSide(match, take) {
+function resolveSide(match, number, take) {
+  if (!match) {
+    throw new Error(`Wedstrijd #${number} bestaat nog niet. Genereer en speel eerst de vorige ronde.`)
+  }
   if (match.status !== 'finished' || match.home_score === null || match.away_score === null) {
-    throw new Error(`Wedstrijd #${match.match_number} is nog niet gespeeld. Vul eerst alle uitslagen van de vorige ronde in.`)
+    throw new Error(`Wedstrijd #${number} is nog niet gespeeld. Vul eerst alle uitslagen van de vorige ronde in.`)
   }
   let homeWon
   if (match.home_score === match.away_score) {
@@ -166,7 +178,7 @@ function resolveSide(match, take) {
     // advances. Without it we cannot know, so ask the admin to set it.
     if (!match.winner_team_id) {
       throw new Error(
-        `Wedstrijd #${match.match_number} (${match.home_name} - ${match.away_name}) eindigde gelijk. ` +
+        `Wedstrijd #${number} (${match.home_name} - ${match.away_name}) eindigde gelijk. ` +
           'Kies bij de uitslag wie er doorging na strafschoppen.'
       )
     }
@@ -177,40 +189,30 @@ function resolveSide(match, take) {
   const advance = (take === 'winner') === homeWon
   return {
     team: { id: advance ? match.home_team_id : match.away_team_id, name: advance ? match.home_name : match.away_name },
-    slot: (take === 'winner' ? 'W' : 'V') + match.match_number, // W=winnaar, V=verliezer
+    slot: (take === 'winner' ? 'W' : 'V') + number, // W=winnaar, V=verliezer
   }
 }
 
 export function buildKnockoutRound(phaseName) {
-  const cfg = ROUNDS[phaseName]
-  if (!cfg || !cfg.source) throw new Error(`Fase "${phaseName}" kan niet automatisch worden gegenereerd.`)
+  const cfg = LATER_ROUNDS[phaseName]
+  if (!cfg) throw new Error(`Fase "${phaseName}" kan niet automatisch worden gegenereerd.`)
 
-  const sourceMatches = loadRoundMatches(cfg.source)
-  if (!sourceMatches || sourceMatches.length === 0) {
-    throw new Error(`${cfg.source} bestaat nog niet. Genereer en speel eerst die ronde.`)
-  }
-
-  const advancers = sourceMatches.map((m) => resolveSide(m, cfg.take))
-
-  const fixtures = []
-  for (let k = 0; k < advancers.length; k += 2) {
-    const home = advancers[k]
-    const away = advancers[k + 1]
-    const index = k / 2
-    fixtures.push({
+  return cfg.fixtures.map(([number, sourceA, sourceB, datetime]) => {
+    const home = resolveSide(loadMatchByNumber(sourceA), sourceA, cfg.take)
+    const away = resolveSide(loadMatchByNumber(sourceB), sourceB, cfg.take)
+    return {
       home_team_id: home.team.id,
       away_team_id: away.team.id,
-      match_datetime: cfg.schedule[index],
-      match_number: cfg.firstNumber + index,
+      match_datetime: datetime,
+      match_number: number,
       venue: null,
       city: null,
       home_team: home.team,
       away_team: away.team,
       home_slot: home.slot,
       away_slot: away.slot,
-    })
-  }
-  return fixtures
+    }
+  })
 }
 
 // Dispatch: build whichever round this phase represents.
@@ -219,32 +221,64 @@ export function buildRound(phaseName) {
   return buildKnockoutRound(phaseName)
 }
 
-// Cheap readiness check for the admin UI: can this phase be generated right now?
-// (Its own matches don't exist yet, and the round it's built from is ready.)
-// Unlike buildRound this never throws — it just returns true/false.
-export function readyToGenerate(phaseName) {
-  const cfg = ROUNDS[phaseName]
-  if (!cfg) return false
-
-  const phase = db.prepare('SELECT id FROM phases WHERE name = ?').get(phaseName)
-  if (!phase) return false
-  const own = db.prepare('SELECT COUNT(*) AS c FROM matches WHERE phase_id = ?').get(phase.id).c
-  if (own > 0) return false // already generated
-
+// Is the round this phase derives from fully decided, so it can be built now?
+// (Group stage complete for the Round of 32; every source match finished — with a
+// recorded shootout winner for a level score — for the later rounds.)
+function sourceReady(phaseName) {
   if (phaseName === 'Ronde van 32') {
     const q = getQualifiers()
     return q.complete && q.groupKeys.length === 12 && q.bestThirds.length >= 8
   }
 
-  const source = loadRoundMatches(cfg.source)
-  if (!source || source.length === 0) return false
-  // Ready once every source match is decided: a finished result, and for a level
-  // score a recorded shootout winner (otherwise we can't tell who advanced).
-  return source.every(
-    (m) =>
+  const cfg = LATER_ROUNDS[phaseName]
+  if (!cfg) return false
+  const sourceNumbers = [...new Set(cfg.fixtures.flatMap(([, a, b]) => [a, b]))]
+  return sourceNumbers.every((n) => {
+    const m = loadMatchByNumber(n)
+    return (
+      m &&
       m.status === 'finished' &&
       m.home_score !== null &&
       m.away_score !== null &&
       (m.home_score !== m.away_score || m.winner_team_id != null)
-  )
+    )
+  })
+}
+
+// Cheap readiness check for the admin UI: can this phase be generated right now?
+// (Its own matches don't exist yet, and the round it's built from is ready.)
+// Unlike buildRound this never throws — it just returns true/false.
+export function readyToGenerate(phaseName) {
+  if (!GENERATABLE_PHASES.includes(phaseName)) return false
+
+  const phase = db.prepare('SELECT id FROM phases WHERE name = ?').get(phaseName)
+  if (!phase) return false
+  const own = db.prepare('SELECT COUNT(*) AS c FROM matches WHERE phase_id = ?').get(phase.id).c
+  if (own > 0) return false // already generated — use regenerate instead
+
+  return sourceReady(phaseName)
+}
+
+// Can this already-generated knockout phase be safely rebuilt? Only when its
+// fixtures carry no predictions and no results yet (so nothing is lost), and the
+// round it derives from is still ready to build. Used to fix a phase that was
+// generated with the wrong fixtures.
+export function readyToRegenerate(phaseName) {
+  if (!GENERATABLE_PHASES.includes(phaseName)) return false
+
+  const phase = db.prepare('SELECT id FROM phases WHERE name = ?').get(phaseName)
+  if (!phase) return false
+
+  const matches = db.prepare('SELECT id, status FROM matches WHERE phase_id = ?').all(phase.id)
+  if (matches.length === 0) return false // nothing to rebuild — use generate instead
+  if (matches.some((m) => m.status === 'finished' || m.status === 'live')) return false
+
+  const ids = matches.map((m) => m.id)
+  const placeholders = ids.map(() => '?').join(',')
+  const predCount = db
+    .prepare(`SELECT COUNT(*) AS c FROM predictions WHERE match_id IN (${placeholders})`)
+    .get(...ids).c
+  if (predCount > 0) return false
+
+  return sourceReady(phaseName)
 }

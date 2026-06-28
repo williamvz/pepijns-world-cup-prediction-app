@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import db from '../db/database.js'
 import { authenticate, requireAdmin } from '../middleware/auth.js'
 import { processMatchResult } from '../services/scoring.js'
-import { buildRound, readyToGenerate, GENERATABLE_PHASES } from '../services/bracket.js'
+import { buildRound, readyToGenerate, readyToRegenerate, GENERATABLE_PHASES } from '../services/bracket.js'
 import { nowNaive } from '../utils/time.js'
 
 const router = express.Router()
@@ -204,7 +204,13 @@ router.get('/phases', (req, res) => {
 
   // `can_generate` tells the admin UI whether this round can be auto-built right
   // now (no matches yet + the round it derives from is fully played).
-  const enriched = phases.map((ph) => ({ ...ph, can_generate: readyToGenerate(ph.name) }))
+  // `can_regenerate` flags a round that already has fixtures but can still be
+  // safely rebuilt (no predictions/results yet) — e.g. to fix a wrong draw.
+  const enriched = phases.map((ph) => ({
+    ...ph,
+    can_generate: readyToGenerate(ph.name),
+    can_regenerate: readyToRegenerate(ph.name),
+  }))
 
   res.json({ phases: enriched })
 })
@@ -231,13 +237,43 @@ router.put('/phases/:id/unlock', (req, res) => {
   res.json({ phase: updated })
 })
 
+// Insert a freshly built set of fixtures for a phase. When `replace` is set the
+// phase's current matches are deleted first (used by regenerate); the whole thing
+// runs in one transaction so a phase is never left half-populated.
+function writeFixtures(phaseId, fixtures, { replace = false } = {}) {
+  const insertMatch = db.prepare(`
+    INSERT INTO matches
+      (phase_id, group_name, home_team_id, away_team_id, match_datetime, venue, city, status, home_score, away_score, match_number)
+    VALUES (?, NULL, ?, ?, ?, ?, ?, 'scheduled', NULL, NULL, ?)
+  `)
+  const run = db.transaction(() => {
+    if (replace) db.prepare('DELETE FROM matches WHERE phase_id = ?').run(phaseId)
+    for (const f of fixtures) {
+      insertMatch.run(phaseId, f.home_team_id, f.away_team_id, f.match_datetime, f.venue, f.city, f.match_number)
+    }
+  })
+  run()
+}
+
+// Shape fixtures for the JSON response so the admin sees what was created.
+function summariseFixtures(fixtures) {
+  return fixtures.map((f) => ({
+    match_number: f.match_number,
+    match_datetime: f.match_datetime,
+    home_team: f.home_team.name,
+    home_slot: f.home_slot,
+    away_team: f.away_team.name,
+    away_slot: f.away_slot,
+  }))
+}
+
 // POST /api/admin/phases/:id/generate
 // Compute the bracket for a knockout phase from the results already in the
 // database and create its matches. The Round of 32 is built from the finished
 // group stage (12 winners + 12 runners-up + 8 best thirds); every later round is
 // built from the winners (or, for the third-place match, the losers) of the
-// previous round. Guarded so it can never run twice or before its source round
-// is decided.
+// matches it derives from. Guarded so it can never run twice or before its source
+// round is decided.
 router.post('/phases/:id/generate', (req, res) => {
   const phase = db.prepare('SELECT * FROM phases WHERE id = ?').get(req.params.id)
   if (!phase) return res.status(404).json({ error: 'Fase niet gevonden' })
@@ -253,7 +289,7 @@ router.post('/phases/:id/generate', (req, res) => {
     .get(phase.id).c
   if (existing > 0) {
     return res.status(400).json({
-      error: `Er bestaan al ${existing} wedstrijden voor deze fase. Genereren overgeslagen.`,
+      error: `Er bestaan al ${existing} wedstrijden voor deze fase. Gebruik "Genereer opnieuw" om ze te vervangen.`,
     })
   }
 
@@ -265,36 +301,60 @@ router.post('/phases/:id/generate', (req, res) => {
     return res.status(400).json({ error: err.message })
   }
 
-  const insertMatch = db.prepare(`
-    INSERT INTO matches
-      (phase_id, group_name, home_team_id, away_team_id, match_datetime, venue, city, status, home_score, away_score, match_number)
-    VALUES (?, NULL, ?, ?, ?, ?, ?, 'scheduled', NULL, NULL, ?)
-  `)
-  const insertAll = db.transaction(() => {
-    for (const f of fixtures) {
-      insertMatch.run(
-        phase.id,
-        f.home_team_id,
-        f.away_team_id,
-        f.match_datetime,
-        f.venue,
-        f.city,
-        f.match_number
-      )
-    }
-  })
-  insertAll()
+  writeFixtures(phase.id, fixtures)
 
   res.status(201).json({
     message: `${fixtures.length} wedstrijden aangemaakt voor ${phase.name}.`,
-    matches: fixtures.map((f) => ({
-      match_number: f.match_number,
-      match_datetime: f.match_datetime,
-      home_team: f.home_team.name,
-      home_slot: f.home_slot,
-      away_team: f.away_team.name,
-      away_slot: f.away_slot,
-    })),
+    matches: summariseFixtures(fixtures),
+  })
+})
+
+// POST /api/admin/phases/:id/regenerate
+// Rebuild a knockout phase that was generated with the wrong fixtures. Only
+// allowed when the existing matches carry no predictions and no results, so
+// nothing players entered is ever lost.
+router.post('/phases/:id/regenerate', (req, res) => {
+  const phase = db.prepare('SELECT * FROM phases WHERE id = ?').get(req.params.id)
+  if (!phase) return res.status(404).json({ error: 'Fase niet gevonden' })
+
+  if (!GENERATABLE_PHASES.includes(phase.name)) {
+    return res.status(400).json({ error: `Opnieuw genereren is niet beschikbaar voor "${phase.name}".` })
+  }
+
+  const matches = db.prepare('SELECT id, status FROM matches WHERE phase_id = ?').all(phase.id)
+  if (matches.length === 0) {
+    return res.status(400).json({
+      error: 'Er zijn nog geen wedstrijden voor deze fase. Gebruik "Genereer wedstrijden".',
+    })
+  }
+  if (matches.some((m) => m.status === 'finished' || m.status === 'live')) {
+    return res.status(400).json({
+      error: 'Er zijn al uitslagen ingevoerd voor deze fase. Opnieuw genereren is geblokkeerd om resultaten te beschermen.',
+    })
+  }
+  const ids = matches.map((m) => m.id)
+  const placeholders = ids.map(() => '?').join(',')
+  const predCount = db
+    .prepare(`SELECT COUNT(*) AS c FROM predictions WHERE match_id IN (${placeholders})`)
+    .get(...ids).c
+  if (predCount > 0) {
+    return res.status(400).json({
+      error: `Er zijn al ${predCount} voorspelling(en) op deze wedstrijden. Opnieuw genereren zou die wissen en is daarom geblokkeerd.`,
+    })
+  }
+
+  let fixtures
+  try {
+    fixtures = buildRound(phase.name)
+  } catch (err) {
+    return res.status(400).json({ error: err.message })
+  }
+
+  writeFixtures(phase.id, fixtures, { replace: true })
+
+  res.status(201).json({
+    message: `${fixtures.length} wedstrijden opnieuw aangemaakt voor ${phase.name}.`,
+    matches: summariseFixtures(fixtures),
   })
 })
 
