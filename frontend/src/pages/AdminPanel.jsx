@@ -332,6 +332,23 @@ export default function AdminPanel() {
     })
   }
 
+  async function handleRegenerateMatches(phase) {
+    setConfirm({
+      message: `De huidige wedstrijden van "${phase.name}" vervangen door een nieuwe generatie volgens het officiële schema? Dit kan alleen zolang er nog geen voorspellingen of uitslagen zijn ingevoerd.`,
+      onConfirm: async () => {
+        setConfirm(null)
+        try {
+          const res = await api.adminRegenerateMatches(phase.id)
+          showMsg(res.message || 'Wedstrijden opnieuw gegenereerd!')
+          fetchAll()
+        } catch (err) {
+          showMsg(err.message || 'Opnieuw genereren mislukt')
+        }
+      },
+      onCancel: () => setConfirm(null),
+    })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -433,8 +450,10 @@ export default function AdminPanel() {
               const isLocked = !phase.is_unlocked
               const matchCount = phase.match_count ?? 0
               // The backend decides whether a round can be auto-built right now
-              // (no matches yet + the round it derives from is fully played).
+              // (no matches yet + the round it derives from is fully played), or
+              // safely rebuilt (fixtures exist but carry no predictions/results).
               const canGenerate = !!phase.can_generate
+              const canRegenerate = !!phase.can_regenerate
               return (
                 <div key={phase.id} className="card p-4 flex items-center gap-4">
                   <div className="text-3xl">{isLocked ? '🔒' : '🔓'}</div>
@@ -453,6 +472,14 @@ export default function AdminPanel() {
                         onClick={() => handleGenerateMatches(phase)}
                       >
                         ⚙️ Genereer wedstrijden
+                      </button>
+                    )}
+                    {canRegenerate && (
+                      <button
+                        className="btn-secondary text-sm py-2 px-4"
+                        onClick={() => handleRegenerateMatches(phase)}
+                      >
+                        🔄 Genereer opnieuw
                       </button>
                     )}
                     {isLocked && (
