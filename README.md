@@ -105,9 +105,12 @@ npm run dev     # Start the frontend on port 5173 (proxied to the backend)
 | Incorrect | 0 pts |
 
 ### Knockout Multipliers
-- Round of 16: × 1.5
+- Group stage: × 1
+- Round of 32: × 1.5
+- Round of 16: × 1.75
 - Quarterfinal: × 2
 - Semifinal: × 2.5
+- Third-place play-off: × 3
 - Final: × 3
 
 ### Bonus Points
