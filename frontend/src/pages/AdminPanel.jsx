@@ -3,29 +3,18 @@ import { format } from 'date-fns'
 import { nl } from 'date-fns/locale'
 import { api } from '../services/api'
 import ScoresPanel from '../components/admin/ScoresPanel'
+import BonusPanel from '../components/admin/BonusPanel'
 import Avatar from '../components/common/Avatar'
+import ConfirmDialog from '../components/common/ConfirmDialog'
 
 const TABS = [
   { key: 'dashboard', label: '📊 Dashboard' },
   { key: 'scores', label: '⚽ Uitslagen' },
+  { key: 'bonus', label: '🏆 Bonus' },
   { key: 'phases', label: '🔓 Fases' },
   { key: 'users', label: '👥 Gebruikers' },
   { key: 'matches', label: '📅 Wedstrijden' },
 ]
-
-function ConfirmDialog({ message, onConfirm, onCancel }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-pitch-800 border border-white/10 rounded-2xl p-6 max-w-sm w-full mx-4 animate-slide-up">
-        <p className="font-heading font-bold text-white mb-6 text-center">{message}</p>
-        <div className="flex gap-3">
-          <button className="btn-secondary flex-1" onClick={onCancel}>Annuleren</button>
-          <button className="btn-danger flex-1" onClick={onConfirm}>Bevestigen</button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function EditMatchModal({ match, onSave, onClose }) {
   const [datetime, setDatetime] = useState(
@@ -437,6 +426,11 @@ export default function AdminPanel() {
       {/* Scores tab */}
       {activeTab === 'scores' && (
         <ScoresPanel matches={matches} onSaved={fetchAll} />
+      )}
+
+      {/* Bonus tab */}
+      {activeTab === 'bonus' && (
+        <BonusPanel />
       )}
 
       {/* Phases tab */}

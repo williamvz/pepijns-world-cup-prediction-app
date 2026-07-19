@@ -8,6 +8,21 @@ const PODIUM_BG = [
   'bg-amber-700/20 border-amber-700/30',
 ]
 
+// One badge per bonus category (champion/topscorer). Hidden entirely when the
+// player never submitted a pick; otherwise colored by outcome so "pending" is
+// visually distinct from "wrong" — green = correct, dim = wrong, gold = not
+// evaluated yet.
+function BonusBadge({ icon, pick, correct }) {
+  if (pick == null) return null
+  const colorClass = correct === 1 ? 'text-green-400' : correct === 0 ? 'text-white/25' : 'text-gold-400/80'
+  const stateLabel = correct === 1 ? '✓ correct' : correct === 0 ? '✗ fout' : 'nog niet beoordeeld'
+  return (
+    <span className={`text-xs ${colorClass}`} title={`${pick} — ${stateLabel}`}>
+      {icon}
+    </span>
+  )
+}
+
 export default function LeaderboardTable({ entries = [], currentUserId, onCompare }) {
   if (!entries.length) {
     return (
@@ -52,6 +67,12 @@ export default function LeaderboardTable({ entries = [], currentUserId, onCompar
                   {entry.total_points ?? entry.points ?? 0}
                 </div>
                 <div className="text-white/40 text-xs">{canCompare ? 'vergelijk ⚖️' : 'punten'}</div>
+                {(entry.champion_pick != null || entry.topscorer_pick != null) && (
+                  <div className="flex gap-1 justify-center mt-1">
+                    <BonusBadge icon="🏆" pick={entry.champion_pick} correct={entry.champion_correct} />
+                    <BonusBadge icon="⚽" pick={entry.topscorer_pick} correct={entry.topscorer_correct} />
+                  </div>
+                )}
               </button>
             </div>
           )
@@ -104,8 +125,10 @@ export default function LeaderboardTable({ entries = [], currentUserId, onCompar
                 <div className={`font-heading font-black text-base ${isMe ? 'text-gold-400' : 'text-white'}`}>
                   {entry.total_points ?? entry.points ?? 0}
                 </div>
-                <div className="text-white/40 text-xs">
-                  {entry.exact_count ?? 0}✓ {entry.winner_count ?? 0}⚽
+                <div className="text-white/40 text-xs flex items-center gap-1 justify-end">
+                  <span>{entry.exact_count ?? 0}✓ {entry.winner_count ?? 0}⚽</span>
+                  <BonusBadge icon="🏆" pick={entry.champion_pick} correct={entry.champion_correct} />
+                  <BonusBadge icon="⚽" pick={entry.topscorer_pick} correct={entry.topscorer_correct} />
                 </div>
               </div>
 
