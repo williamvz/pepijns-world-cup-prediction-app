@@ -25,7 +25,13 @@ router.get('/', (req, res) => {
       COALESCE(pred.pts, 0) + COALESCE(bon.pts, 0) as total_points,
       COALESCE(pred.correct, 0) as correct_winners,
       COALESCE(pred.scored, 0) as scored_predictions,
-      COALESCE(pred.exact, 0) as exact_scores
+      COALESCE(pred.exact, 0) as exact_scores,
+      bon.champion_pick,
+      bon.champion_correct,
+      bon.champion_points,
+      bon.topscorer_pick,
+      bon.topscorer_correct,
+      bon.topscorer_points
     FROM users u
     LEFT JOIN (
       SELECT
@@ -42,7 +48,15 @@ router.get('/', (req, res) => {
       GROUP BY p.user_id
     ) pred ON pred.user_id = u.id
     LEFT JOIN (
-      SELECT user_id, SUM(points_earned) as pts
+      SELECT
+        user_id,
+        SUM(points_earned) as pts,
+        MAX(CASE WHEN type = 'champion' THEN predicted_value END) as champion_pick,
+        MAX(CASE WHEN type = 'champion' THEN is_correct END) as champion_correct,
+        SUM(CASE WHEN type = 'champion' THEN points_earned ELSE 0 END) as champion_points,
+        MAX(CASE WHEN type = 'topscorer' THEN predicted_value END) as topscorer_pick,
+        MAX(CASE WHEN type = 'topscorer' THEN is_correct END) as topscorer_correct,
+        SUM(CASE WHEN type = 'topscorer' THEN points_earned ELSE 0 END) as topscorer_points
       FROM bonus_predictions
       GROUP BY user_id
     ) bon ON bon.user_id = u.id
@@ -61,6 +75,12 @@ router.get('/', (req, res) => {
     correct_winners: row.correct_winners,
     exact_scores: row.exact_scores,
     scored_predictions: row.scored_predictions,
+    champion_pick: row.champion_pick,
+    champion_correct: row.champion_correct,
+    champion_points: row.champion_points,
+    topscorer_pick: row.topscorer_pick,
+    topscorer_correct: row.topscorer_correct,
+    topscorer_points: row.topscorer_points,
   }))
 
   res.json({ leaderboard })

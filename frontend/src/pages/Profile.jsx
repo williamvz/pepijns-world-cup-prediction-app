@@ -271,7 +271,7 @@ export default function Profile() {
               <div className="flex items-center gap-3 glass rounded-xl p-3">
                 <span className="font-heading font-bold text-gold-400">{championBonus.predicted_value}</span>
                 <span className="text-white/30 text-xs font-heading">
-                  {championBonus.points !== null && championBonus.points !== undefined
+                  {championBonus.is_correct !== null && championBonus.is_correct !== undefined
                     ? `${championBonus.points} pt`
                     : 'Nog geen uitslag'}
                 </span>
@@ -303,7 +303,7 @@ export default function Profile() {
               <div className="flex items-center gap-3 glass rounded-xl p-3">
                 <span className="font-heading font-bold text-gold-400">{scorerBonus.predicted_value}</span>
                 <span className="text-white/30 text-xs font-heading">
-                  {scorerBonus.points !== null && scorerBonus.points !== undefined
+                  {scorerBonus.is_correct !== null && scorerBonus.is_correct !== undefined
                     ? `${scorerBonus.points} pt`
                     : 'Nog geen uitslag'}
                 </span>

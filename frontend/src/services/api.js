@@ -204,4 +204,6 @@ export const api = {
     request('PUT', `/admin/matches/${matchId}`, { home_score, away_score, status: 'finished', winner_team_id }),
   adminUpdateMatch: (matchId, data) => request('PUT', `/admin/matches/${matchId}`, data),
   adminCreateUser: (data) => request('POST', '/admin/users', data),
+  adminBonusOverview: () => request('GET', '/admin/bonus'),
+  adminEvaluateBonus: (type, correct_value) => request('POST', '/admin/bonus/evaluate', { type, correct_value }),
 }

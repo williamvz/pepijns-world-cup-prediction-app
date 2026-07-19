@@ -428,6 +428,36 @@ router.put('/matches/:id', (req, res) => {
   res.json({ match: updated })
 })
 
+// GET /api/admin/bonus - overview of champion/topscorer predictions for evaluation
+router.get('/bonus', (req, res) => {
+  const rows = db.prepare(`
+    SELECT bp.*, u.username, u.avatar
+    FROM bonus_predictions bp
+    JOIN users u ON u.id = bp.user_id
+    ORDER BY u.username COLLATE NOCASE ASC
+  `).all()
+
+  function summarise(type) {
+    const predictions = rows.filter((r) => r.type === type)
+    const evaluated = predictions.some((r) => r.is_correct !== null)
+
+    const tally = {}
+    for (const p of predictions) {
+      tally[p.predicted_value] = (tally[p.predicted_value] || 0) + 1
+    }
+    const tallied = Object.entries(tally)
+      .map(([value, count]) => ({ value, count }))
+      .sort((a, b) => b.count - a.count)
+
+    return { predictions, evaluated, tally: tallied }
+  }
+
+  res.json({
+    champion: summarise('champion'),
+    topscorer: summarise('topscorer'),
+  })
+})
+
 // POST /api/admin/bonus/evaluate
 router.post('/bonus/evaluate', (req, res) => {
   const { type, correct_value } = req.body
